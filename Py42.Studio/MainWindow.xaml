@@ -1,0 +1,141 @@
+<Window x:Class="Py42.Studio.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="http://icsharpcode.net/sharpdevelop/avalonedit"
+        Title="Py42 — Python vers RPN HP42S / DM42"
+        Width="1300" Height="840" MinWidth="960" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Body}"
+        PreviewKeyDown="Window_PreviewKeyDown">
+  <DockPanel>
+
+    <!-- Barre d'outils -->
+    <Border DockPanel.Dock="Top" Background="{StaticResource Bar}" Padding="12,9">
+      <WrapPanel VerticalAlignment="Center">
+        <TextBlock Text="Py42" FontSize="21" FontWeight="Bold" Foreground="{StaticResource Shift}"
+                   VerticalAlignment="Center" Margin="0,0,18,0" />
+        <Button Content="Ouvrir…" Style="{StaticResource KeyButton}" Click="Open_Click" ToolTip="Ouvrir un fichier .py (Ctrl+O)" />
+        <Button Content="Enregistrer" Style="{StaticResource KeyButton}" Click="SavePy_Click" ToolTip="Enregistrer le source Python (Ctrl+S)" />
+        <ComboBox x:Name="ExampleBox" Width="210" Margin="8,0,18,0" VerticalAlignment="Center"
+                  SelectionChanged="Example_Changed" ToolTip="Charger un exemple" />
+
+        <TextBlock Text="Programme" Style="{StaticResource FieldLabel}" />
+        <TextBox x:Name="ProgName" Width="78" MaxLength="7" Text="MAIN" Style="{StaticResource Field}"
+                 Margin="0,0,16,0" TextChanged="Option_Changed"
+                 ToolTip="Label global du programme principal (7 caractères max)" />
+        <CheckBox x:Name="RadBox" Content="RAD automatique" IsChecked="True" Click="Option_Changed"
+                  ToolTip="Python calcule en radians : ajoute RAD au début si le programme utilise la trigonométrie" />
+        <CheckBox x:Name="UpperBox" Content="Majuscules" IsChecked="True" Click="Option_Changed"
+                  ToolTip="Noms de variables et de labels en majuscules, plus simples à saisir sur la calculatrice" />
+        <CheckBox x:Name="NumBox" Content="Numéros de ligne" IsChecked="True" Click="Option_Changed" />
+
+        <Button Content="Copier le RPN" Style="{StaticResource ShiftButton}" Margin="6,0,6,0" Click="Copy_Click"
+                ToolTip="Copie le listing : dans Free42, Edit → Paste Program" />
+        <Button Content="Générer .raw…  F8" Style="{StaticResource ShiftButton}" Margin="0,0,6,0" Click="Raw_Click"
+                ToolTip="Encode le programme en fichier .raw pour la DM42 / Free42 (encodeur dm42dll)" />
+        <Button Content="Exporter .txt…" Style="{StaticResource KeyButton}" Click="Export_Click" />
+      </WrapPanel>
+    </Border>
+
+    <!-- Barre d'état -->
+    <Border DockPanel.Dock="Bottom" Background="{StaticResource Bar}" Padding="12,5">
+      <TextBlock x:Name="Status" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis" />
+    </Border>
+
+    <Grid Margin="12,10,12,10">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" MinHeight="200" />
+        <RowDefinition Height="8" />
+        <RowDefinition Height="230" MinHeight="120" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="3*" MinWidth="320" />
+        <ColumnDefinition Width="8" />
+        <ColumnDefinition Width="2*" MinWidth="260" />
+      </Grid.ColumnDefinitions>
+
+      <!-- Éditeur Python -->
+      <DockPanel Grid.Row="0" Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="PYTHON" Style="{StaticResource Caption}" />
+        <Border BorderBrush="#45443F" BorderThickness="1" CornerRadius="3" Background="{StaticResource Paper}">
+          <ae:TextEditor x:Name="PyEditor" FontFamily="Consolas" FontSize="15"
+                         ShowLineNumbers="True" LineNumbersForeground="#A39F94"
+                         Background="{StaticResource Paper}" Foreground="#1F1E1B" Padding="4"
+                         HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
+        </Border>
+      </DockPanel>
+
+      <GridSplitter Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    Background="Transparent" ResizeDirection="Columns" />
+
+      <!-- Listing RPN -->
+      <DockPanel Grid.Row="0" Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Text="RPN  HP-42S · DM42 · Free42" Style="{StaticResource Caption}" />
+        <Border Background="{StaticResource Lcd}" BorderBrush="{StaticResource LcdEdge}" BorderThickness="1" CornerRadius="3">
+          <ae:TextEditor x:Name="RpnEditor" IsReadOnly="True" FontFamily="Consolas" FontSize="15"
+                         Background="Transparent" Foreground="{StaticResource LcdInk}" Padding="8,4"
+                         HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                         ToolTip="Cliquez une ligne pour voir la ligne Python d'origine" />
+        </Border>
+      </DockPanel>
+
+      <GridSplitter Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch" Background="Transparent" ResizeDirection="Rows" />
+
+      <!-- Messages et simulation -->
+      <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="3*" />
+          <ColumnDefinition Width="8" />
+          <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Grid.Column="0">
+          <TextBlock DockPanel.Dock="Top" Text="MESSAGES" Style="{StaticResource Caption}" />
+          <ListBox x:Name="Messages" Background="#1F1F1D" Foreground="{StaticResource Ink}" BorderBrush="#45443F"
+                   FontSize="13" SelectionChanged="Message_Selected"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="2,3" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+
+        <DockPanel Grid.Column="2">
+          <TextBlock DockPanel.Dock="Top" Text="SIMULATION" Style="{StaticResource Caption}" />
+          <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="4" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="4" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Lancer" Style="{StaticResource FieldLabel}" />
+            <ComboBox Grid.Row="0" Grid.Column="1" x:Name="EntryBox" />
+            <Button Grid.Row="0" Grid.Column="2" Content="R/S  (F5)" Style="{StaticResource ShiftButton}"
+                    Margin="6,0,0,0" Click="Run_Click" />
+            <TextBlock Grid.Row="2" Text="Pile" Style="{StaticResource FieldLabel}" />
+            <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" x:Name="StackBox" Style="{StaticResource Field}"
+                     ToolTip="Valeurs mises sur la pile avant l'appel, la dernière va dans X (ex. : 12 18)" />
+            <TextBlock Grid.Row="4" Text="INPUT" Style="{StaticResource FieldLabel}" />
+            <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" x:Name="InputsBox" Style="{StaticResource Field}"
+                     ToolTip="Réponses données aux INPUT, dans l'ordre (ex. : 1 -3 2). Virgule décimale acceptée." />
+          </Grid>
+          <Border Background="{StaticResource Lcd}" BorderBrush="{StaticResource LcdEdge}" BorderThickness="1" CornerRadius="3">
+            <TextBox x:Name="SimOut" IsReadOnly="True" Background="Transparent" BorderThickness="0"
+                     Foreground="{StaticResource LcdInk}" FontFamily="Consolas" FontSize="14" Padding="8,6"
+                     VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
+          </Border>
+        </DockPanel>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>

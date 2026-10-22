@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SyntaxDefinition name="RPN42" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="LineNo" foreground="#737B62" />
+  <Color name="Label" foreground="#8C2F0C" fontWeight="bold" />
+  <Color name="Flow" foreground="#9A5200" fontWeight="bold" />
+  <Color name="Test" foreground="#1F4C78" fontWeight="bold" />
+  <Color name="Memory" foreground="#2B3A1C" />
+  <Color name="Alpha" foreground="#556B14" />
+  <Color name="Number" foreground="#5E2C73" />
+  <RuleSet>
+    <Rule color="LineNo">^\d{2,3}(?=\s)</Rule>
+    <Rule color="Label">\bLBL\s+("[^"]*"|\d+)</Rule>
+    <Rule color="Flow">\b(GTO|XEQ)\s+("[^"]*"|\d+)|\b(RTN|END|STOP)\b</Rule>
+    <Rule color="Memory">\b(STO|RCL|INPUT|VIEW|ARCL)\S*(\s+("[^"]*"|ST\s\w))?</Rule>
+    <Rule color="Alpha">⊢?"[^"]*"</Rule>
+    <Rule color="Test">\bX\S*\?</Rule>
+    <Rule color="Number">(?&lt;=^\d{2,3}\s|^)-?\d+(\.\d*)?(E-?\d+)?\b</Rule>
+  </RuleSet>
+</SyntaxDefinition>

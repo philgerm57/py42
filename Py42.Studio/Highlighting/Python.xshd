@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SyntaxDefinition name="Python42" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Comment" foreground="#8A8676" fontStyle="italic" />
+  <Color name="String" foreground="#3D7A2A" />
+  <Color name="Keyword" foreground="#B8561B" fontWeight="bold" />
+  <Color name="Builtin" foreground="#2D5E9E" />
+  <Color name="Number" foreground="#8A3B8F" />
+  <Color name="Def" foreground="#1F1E1B" fontWeight="bold" />
+  <Color name="Hp" foreground="#78288C" fontWeight="bold" />
+  <RuleSet>
+    <Span color="Comment" begin="\#" />
+    <Span color="String">
+      <Begin>"</Begin>
+      <End>"</End>
+      <RuleSet><Span begin="\\" end="." /></RuleSet>
+    </Span>
+    <Span color="String">
+      <Begin>'</Begin>
+      <End>'</End>
+      <RuleSet><Span begin="\\" end="." /></RuleSet>
+    </Span>
+    <Keywords color="Keyword">
+      <Word>def</Word><Word>return</Word><Word>if</Word><Word>elif</Word><Word>else</Word>
+      <Word>while</Word><Word>for</Word><Word>in</Word><Word>break</Word><Word>continue</Word>
+      <Word>pass</Word><Word>assert</Word><Word>and</Word><Word>or</Word><Word>not</Word><Word>True</Word>
+      <Word>False</Word><Word>import</Word><Word>from</Word><Word>global</Word>
+    </Keywords>
+    <Keywords color="Builtin">
+      <Word>print</Word><Word>input</Word><Word>range</Word><Word>int</Word><Word>float</Word>
+      <Word>abs</Word><Word>max</Word><Word>min</Word><Word>pow</Word><Word>math</Word>
+      <Word>sqrt</Word><Word>sin</Word><Word>cos</Word><Word>tan</Word><Word>asin</Word>
+      <Word>acos</Word><Word>atan</Word><Word>atan2</Word><Word>sinh</Word><Word>cosh</Word>
+      <Word>tanh</Word><Word>exp</Word><Word>log</Word><Word>log10</Word><Word>hypot</Word>
+      <Word>pi</Word><Word>factorial</Word><Word>gamma</Word><Word>radians</Word><Word>degrees</Word>
+      <Word>fabs</Word><Word>trunc</Word>
+      <Word>prompt</Word><Word>menu</Word><Word>varmenu</Word>
+      <Word>cmath</Word><Word>np</Word><Word>numpy</Word><Word>linalg</Word><Word>array</Word><Word>zeros</Word><Word>solve</Word><Word>inv</Word><Word>det</Word><Word>transpose</Word><Word>norm</Word><Word>rows</Word><Word>cols</Word><Word>len</Word><Word>dot</Word><Word>cross</Word><Word>copy</Word><Word>complex</Word><Word>conjugate</Word><Word>conj</Word><Word>phase</Word><Word>rect</Word><Word>real</Word><Word>imag</Word>
+    </Keywords>
+    <Keywords color="Hp">
+      <Word>SIN</Word><Word>COS</Word><Word>TAN</Word><Word>ASIN</Word><Word>ACOS</Word><Word>ATAN</Word><Word>SINH</Word><Word>COSH</Word><Word>TANH</Word><Word>ASINH</Word><Word>ACOSH</Word><Word>ATANH</Word><Word>LN</Word><Word>LOG</Word><Word>LN1plus</Word><Word>Eto</Word><Word>EtoMinus1</Word><Word>CommonExp</Word><Word>EXP10</Word><Word>SQRT</Word><Word>Reciprocal</Word><Word>ABS</Word><Word>IP</Word><Word>FP</Word><Word>RND</Word><Word>SIGN</Word><Word>GAMMA</Word><Word>Factorial</Word><Word>toDEG</Word><Word>toRAD</Word><Word>toHMS</Word><Word>toHR</Word><Word>toDEC</Word><Word>toOCT</Word><Word>Percent</Word><Word>PercentCH</Word><Word>COMB</Word><Word>PERM</Word><Word>MOD</Word><Word>HMSplus</Word><Word>HMSminus</Word><Word>HMSADD</Word><Word>HMSSUB</Word><Word>ROTXY</Word><Word>BASEplus</Word><Word>BASEminus</Word><Word>BASEtimes</Word><Word>BASEdivide</Word><Word>BASEplusMinus</Word><Word>BINM</Word><Word>OCTM</Word><Word>DECM</Word><Word>HEXM</Word><Word>NEWMAT</Word><Word>COMPLEX</Word><Word>RCL</Word><Word>STO</Word><Word>DET</Word><Word>INVRT</Word><Word>TRANS</Word><Word>FNRM</Word><Word>RNRM</Word><Word>RSUM</Word><Word>UVEC</Word><Word>DOT</Word><Word>CROSS</Word><Word>whatDIM</Word><Word>EDIT</Word><Word>StatPlus</Word><Word>StatMinus</Word><Word>CLStat</Word><Word>ALLStat</Word><Word>LINStat</Word><Word>StatREG</Word><Word>StatWhichREG</Word><Word>MEAN</Word><Word>SDEV</Word><Word>SUM</Word><Word>WMEAN</Word><Word>CORR</Word><Word>SLOPE</Word><Word>YINT</Word><Word>FCSTX</Word><Word>FCSTY</Word><Word>LINF</Word><Word>LOGF</Word><Word>EXPF</Word><Word>PWRF</Word><Word>BEST</Word><Word>FIX</Word><Word>SCI</Word><Word>ENG</Word><Word>ALL</Word><Word>RAD</Word><Word>DEG</Word><Word>GRAD</Word><Word>RECT</Word><Word>POLAR</Word><Word>CPXRES</Word><Word>REALRES</Word><Word>RDXcomma</Word><Word>RDXperiod</Word><Word>CLLCD</Word><Word>CLD</Word><Word>PSE</Word><Word>DELAY</Word><Word>SIZE</Word><Word>ON</Word><Word>OFF</Word><Word>STOP</Word><Word>BEEP</Word><Word>TONE</Word><Word>SF</Word><Word>CF</Word><Word>CLA</Word><Word>CLST</Word><Word>CLX</Word><Word>CLRG</Word><Word>AON</Word><Word>AOFF</Word><Word>ASHF</Word><Word>AROT</Word><Word>AIP</Word><Word>XTOA</Word><Word>ALENG</Word><Word>ATOX</Word><Word>POSA</Word><Word>AVIEW</Word><Word>PROMPT</Word><Word>CLMENU</Word><Word>MENU</Word><Word>EXITALL</Word><Word>CLKEYS</Word><Word>KEYASN</Word><Word>LCLBL</Word><Word>GETKEY</Word><Word>RAN</Word><Word>SEED</Word><Word>PI</Word><Word>PIXEL</Word><Word>AGRAPH</Word><Word>PRA</Word><Word>PRX</Word><Word>PRSTK</Word><Word>PRLCD</Word><Word>PRUSR</Word><Word>ADV</Word><Word>PRON</Word><Word>PROFF</Word><Word>MAN</Word><Word>NORM</Word><Word>TRACE</Word><Word>FS</Word><Word>FC</Word><Word>isFS</Word><Word>isFC</Word><Word>FSC</Word><Word>FCC</Word><Word>isCPX</Word><Word>isMAT</Word><Word>isREAL</Word><Word>isSTR</Word><Word>VIEW</Word><Word>INPUT</Word><Word>ARCL</Word><Word>ASTO</Word><Word>CLV</Word><Word>PRV</Word><Word>EDITN</Word><Word>SOLVE</Word><Word>INTEG</Word><Word>PGMSLV</Word><Word>PGMINT</Word><Word>CLP</Word><Word>KEYG</Word><Word>KEYX</Word><Word>ASSIGN</Word><Word>alpha</Word>
+    </Keywords>
+    <Rule color="Def">(?&lt;=\bdef\s+)[\p{L}_][\p{L}\p{Nd}_]*</Rule>
+    <Rule color="Number">\b\d+(\.\d*)?([eE][+-]?\d+)?j?\b|\.\d+</Rule>
+  </RuleSet>
+</SyntaxDefinition>

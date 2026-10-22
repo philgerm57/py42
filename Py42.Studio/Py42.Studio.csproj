@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Py42</AssemblyName>
+    <RootNamespace>Py42.Studio</RootNamespace>
+    <Product>Py42 — Python vers RPN HP42S</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
+    <ProjectReference Include="..\Py42.Core\Py42.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Highlighting\Python.xshd" LogicalName="Python.xshd" />
+    <EmbeddedResource Include="Highlighting\Rpn.xshd" LogicalName="Rpn.xshd" />
+  </ItemGroup>
+  <!-- fichier .raw : encodeur de dm42dll -->
+  <ItemGroup>
+    <Reference Include="dm42dll">
+      <HintPath>..\..\dm42dll\bin\Debug\dm42dll.dll</HintPath>
+    </Reference>
+    <Compile Include="..\Shared\RawExport.cs" Link="RawExport.cs" />
+  </ItemGroup>
+</Project>
