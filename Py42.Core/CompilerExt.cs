@@ -272,6 +272,25 @@ public sealed partial class Compiler
         GenIndexAssign(new IndexAssign(new Index(b, new() { new Num(-1, "-1", c.Line) }, c.Line), c.Args[1], c.Line));
     }
 
+    /// <summary>
+    /// j, m, a = dmy(d) : découpe une date JJ.MMAAAA (format D.MY de la DM42).
+    /// STO ST Y garde une copie de X dans Y, IP en extrait la partie entière, - laisse la partie fractionnaire.
+    /// </summary>
+    void GenDmy(Call c, Assign a)
+    {
+        Arity(c, 1);
+        if (a.Targets.Count != 3)
+            throw new CompileError($"dmy() renvoie 3 valeurs (jour, mois, année), {a.Targets.Count} variable(s) à remplir", a.Line);
+        GenValue(c.Args[0]);
+        Emit(K.Stk, "STO ST Y"); Emit(K.Fn, "IP"); Emit(K.Sto, Var(a.Targets[0])); Emit(K.Op, "-");
+        Emit(K.Num, "100"); Emit(K.Op, "×");
+        Emit(K.Stk, "STO ST Y"); Emit(K.Fn, "IP"); Emit(K.Sto, Var(a.Targets[1])); Emit(K.Op, "-");
+        // + 0.5 IP : arrondit l'année (inutile en BCD sur la calculatrice, utile en simulation)
+        Emit(K.Num, "10000"); Emit(K.Op, "×"); Emit(K.Num, "0.5"); Emit(K.Op, "+"); Emit(K.Fn, "IP");
+        Emit(K.Sto, Var(a.Targets[2]));
+        maxStack = Math.Max(maxStack, 2);
+    }
+
     /// <summary>b.pop() : lit b[-1] (si x = b.pop()), puis DIM réduit la matrice d'une ligne.</summary>
     void GenPop(Call c, string? target)
     {

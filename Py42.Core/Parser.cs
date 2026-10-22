@@ -172,6 +172,9 @@ public sealed class Parser
         {
             Next();
             var values = ExpressionList();
+            // (a, b) = (1, 2) s'écrit comme a, b = 1, 2
+            if (first is [TupleLit ft]) first = ft.Items;
+            if (values is [TupleLit vt]) values = vt.Items;
             if (IsOp("=")) throw new CompileError("Les affectations en chaîne (a = b = 0) ne sont pas prises en charge", line);
             if (first.Any(e => e is Index))
             {

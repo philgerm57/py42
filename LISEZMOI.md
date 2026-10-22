@@ -45,7 +45,8 @@ Sur une vraie HP-42S, saisir le listing à la main (pas de liaison).
 - `if / elif / else`, `while` (+ `else`), `for i in range(...)` (+ `else`, pas constant positif ou négatif), `break`, `continue`, `pass`, `assert condition, "message"`.
 - Comparaisons `< > <= >= == !=`, chaînées (`0 < x < 10`), `and`, `or`, `not`.
 - `def f(a, b, ...)` avec au plus 4 paramètres, `return x` ou `return a, b` (récupéré par `a, b = f(...)`), appels imbriqués, `global`.
-- Affectations multiples `a, b = b, a % b` (jusqu'à 4), affectations combinées `+= -= *= /= **= %= //=`.
+- Affectations multiples `a, b = b, a % b` ou `(a, b) = (b, a % b)` (jusqu'à 4), affectations combinées `+= -= *= /= **= %= //=`.
+- `j, m, a = dmy(d)` découpe une date au format JJ.MMAAAA (D.MY de la DM42) : `12.052024` donne 12, 5, 2024.
 - `x = input("...")`, `x = float(input(...))`, `x = int(input(...))` → `INPUT "X"`.
 - `print("texte", x, ...)` → `"texte"`, `ARCL`, `AVIEW` ; `print(x)` → `VIEW "X"`.
 - `x = prompt("PRIX ?")` ou `x = PROMPT("PRIX ?")` → le texte s'affiche (`PROMPT`), on tape la valeur puis R/S. Seul, `PROMPT("PRET")` fait une simple pause. `MENU(...)` et `VARMENU(...)` en majuscules marchent aussi.

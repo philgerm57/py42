@@ -458,6 +458,7 @@ public sealed partial class Compiler
             case "prompt": throw new CompileError("prompt() s'utilise seul : x = prompt(\"TEXTE\") ou prompt(\"TEXTE\")", c.Line);
             case "input": throw new CompileError("input() s'utilise seul : x = input(...) ou x = float(input(...))", c.Line);
             case "print": throw new CompileError("print() ne renvoie pas de valeur", c.Line);
+            case "dmy": throw new CompileError("dmy() renvoie 3 valeurs : j, m, a = dmy(date)", c.Line);
             case "round": case "floor": case "ceil":
                 throw new CompileError($"{c.Func}() n'a pas d'équivalent direct sur HP42. Utilisez int() (partie entière, IP).", c.Line);
         }
@@ -802,6 +803,9 @@ public sealed partial class Compiler
                 Emit(K.Sto, Var(a.Targets[0]));
                 break;
             }
+            case Assign { Values: [Call { Func: "dmy" } dc] } a when !IsUser("dmy"):
+                GenDmy(dc, a);
+                break;
             case Assign { Values: [Call uc] } a when IsUser(uc.Func):
             {
                 // v1, v2 = f(...) : la fonction laisse ses valeurs sur la pile (la dernière dans X)
