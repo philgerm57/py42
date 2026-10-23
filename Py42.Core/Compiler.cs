@@ -459,8 +459,10 @@ public sealed partial class Compiler
             case "input": throw new CompileError("input() s'utilise seul : x = input(...) ou x = float(input(...))", c.Line);
             case "print": throw new CompileError("print() ne renvoie pas de valeur", c.Line);
             case "dmy": throw new CompileError("dmy() renvoie 3 valeurs : j, m, a = dmy(date)", c.Line);
-            case "round": case "floor": case "ceil":
-                throw new CompileError($"{c.Func}() n'a pas d'équivalent direct sur HP42. Utilisez int() (partie entière, IP).", c.Line);
+            case "round":
+                throw new CompileError("round() n'a pas d'équivalent direct sur HP42. Utilisez int() (partie entière, IP), floor() ou ceil().", c.Line);
+            case "floor": case "ceil":
+                throw new CompileError($"{c.Func}() n'est pas encore accepté à cet endroit : calculez-le d'abord dans une variable (n = {c.Func}(x))", c.Line);
         }
         int mn = NeedMatCall(c);
         if (mn >= 0) return mn;
@@ -527,6 +529,35 @@ public sealed partial class Compiler
             case Call { Func: "solve", Args.Count: 2 } sc:
                 // solve(A, b) = inv(A) @ b
                 return Prepare(new Bin("@", new Call("inv", new() { sc.Args[0] }, sc.Line), sc.Args[1], sc.Line), root);
+            case Call { Func: "floor" or "ceil" } fc when !IsUser(fc.Func):
+            {
+                // floor(x) = x - (x MOD 1), ceil(x) = x + (-x MOD 1) : le MOD de la HP-42S a le signe du diviseur,
+                // donc x MOD 1 est toujours dans [0, 1[, y compris pour x négatif (pas de test ni de saut)
+                Arity(fc, 1);
+                int l = fc.Line;
+                if (Parser.ConstValue(fc.Args[0]) is double cv)
+                {
+                    // constante : calculée dès la conversion
+                    double r = fc.Func == "floor" ? Math.Floor(cv) : Math.Ceiling(cv);
+                    var n = new Num(Math.Abs(r), Math.Abs(r).ToString(System.Globalization.CultureInfo.InvariantCulture), l);
+                    return r < 0 ? new Unary("-", n, l) : n;
+                }
+                var x = Prepare(fc.Args[0], false);
+                if (!(x is Num or Name or Const or Unary { A: Num or Name or Const }))
+                {
+                    // x sert deux fois : calculé une seule fois dans une variable temporaire
+                    var px = Fit(x, 4);
+                    CheckDepth(px, 0);
+                    Gen(px);
+                    string t = NewTemp();
+                    Emit(K.Sto, t);
+                    x = new Name(t, l, true);
+                }
+                var one = new Num(1, "1", l);
+                return fc.Func == "floor"
+                    ? new Bin("-", x, new Bin("%", x, one, l), l)
+                    : new Bin("+", x, new Bin("%", x is Unary { Op: "-" } nx ? nx.A : new Unary("-", x, l), one, l), l);
+            }
             case Call c: return c with { Args = c.Args.Select(a => a is Str ? a : Prepare(a, false)).ToList() };
             case ListLit l: return HoistList(l);
             case TupleLit t: throw new CompileError("Les tuples ne servent qu'à zeros((lignes, colonnes))", t.Line);
