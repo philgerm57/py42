@@ -45,15 +45,19 @@ Sur une vraie HP-42S, saisir le listing à la main (pas de liaison).
 - `if / elif / else`, `while` (+ `else`), `for i in range(...)` (+ `else`, pas constant positif ou négatif), `break`, `continue`, `pass`, `assert condition, "message"`.
 - Comparaisons `< > <= >= == !=`, chaînées (`0 < x < 10`), `and`, `or`, `not`.
 - Commentaires `# …` et blocs `"""` … `"""` (ou `'''`) en début de ligne, docstrings comprises : ignorés, rien dans le RPN.
+- Variables déclarées avant `def main():` puis appel final `main()` (ou `if __name__ == "__main__": main()`) : les déclarations vont sous un label à part (`INIT`, ou le nom du programme s'il diffère de MAIN) et `main` commence par `XEQ "INIT"`. Lancer `XEQ "MAIN"` sur la calculatrice suffit donc.
 - `def f(a, b, ...)` avec au plus 4 paramètres, `return x` ou `return a, b` (récupéré par `a, b = f(...)`), appels imbriqués, `global`.
 - Affectations multiples `a, b = b, a % b` ou `(a, b) = (b, a % b)` (jusqu'à 4), affectations combinées `+= -= *= /= **= %= //=`.
+- Tuples : `return (a, b)`, `for v in (1, 2, 3)`, `x in (1, 5, 7)` / `x not in (…)` (→ suite de `==` / `!=`), `print("date", (j, m, a))` → `date (12, 5, 2024)`.
+- Liste de couples `m = [(1.0, n1), (1.05, n2), …]` → matrice (une ligne par couple) ; `for x, n in m:` parcourt ses lignes, une variable par colonne.
 - `j, m, a = dmy(d)` découpe une date au format JJ.MMAAAA (D.MY de la DM42) : `12.052024` donne 12, 5, 2024.
 - `x = input("...")`, `x = float(input(...))`, `x = int(input(...))` → `INPUT "X"`.
 - `print("texte", x, ...)` → `"texte"`, `ARCL`, `AVIEW` ; `print(x)` → `VIEW "X"`.
 - Concaténation : `print("P Vap :" + str(v) + " hPa")` ou `print("N=" + floor(n))` → morceaux à la suite, sans espace ; `floor`, `ceil`, `int` sont ajoutés par `AIP` (sans décimales).
 - `x = prompt("PRIX ?")` ou `x = PROMPT("PRIX ?")` → le texte s'affiche (`PROMPT`), on tape la valeur puis R/S. Seul, `PROMPT("PRET")` fait une simple pause. `MENU(...)` et `VARMENU(...)` en majuscules marchent aussi.
 - `import math`, `from math import ...` ; fonctions : `sqrt sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh exp expm1 log log1p log10 abs fabs int trunc floor ceil factorial gamma radians degrees hypot pow max min`, constantes `pi` et `e`.
-- `floor(x)` et `ceil(x)` → `x - (x MOD 1)` et `x + (-x MOD 1)` : le MOD de la HP-42S a le signe du diviseur, donc le résultat est juste aussi pour x négatif ; une constante est calculée dès la conversion. `round()` n'est pas pris en charge.
+- `floor(x)` et `ceil(x)` → `x - (x MOD 1)` et `x + (-x MOD 1)` : le MOD de la HP-42S a le signe du diviseur, donc le résultat est juste aussi pour x négatif ; une constante est calculée dès la conversion.
+- `round(x, n)` (n entier constant, 0 à 11) → `IP(x·10ⁿ + 0,5·SIGN(x)) ÷ 10ⁿ` : au plus proche, les demis s'éloignent de zéro comme `RND` (Python, lui, arrondit `round(2.5)` à 2) ; le mode d'affichage `FIX` n'est pas modifié. `round(x)` sans nombre de décimales est refusé : écrivez `round(x, 0)`.
 
 ## Expressions longues
 

@@ -120,6 +120,12 @@ public static class Lexer
                         num += "j";
                         i++;
                     }
+                    // 1Tinductance : un nom ne commence pas par un chiffre (Python le refuse aussi)
+                    if (i < s.Length && (char.IsLetter(s[i]) || s[i] == '_'))
+                    {
+                        var bad = IdRx.Match(s, i);
+                        throw new CompileError($"Nom « {num}{bad.Value} » invalide : un nom de variable ne peut pas commencer par un chiffre (écrivez par exemple « {bad.Value}{num} » ou « v{num}{bad.Value} »)", L);
+                    }
                     toks.Add(new(T.Num, num, L));
                     continue;
                 }

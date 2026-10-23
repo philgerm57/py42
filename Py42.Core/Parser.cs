@@ -129,6 +129,7 @@ public sealed class Parser
                     Next();
                     var values = new List<Expr>();
                     if (!Is(T.NL) && !Is(T.EOF) && !IsOp(";")) values = ExpressionList();
+                    if (values is [TupleLit rt]) values = rt.Items;   // return (a, b) comme return a, b
                     if (values.Count > 4) throw new CompileError("return renvoie au plus 4 valeurs (pile X, Y, Z, T)", line);
                     return new Return(values, line);
                 }
@@ -247,11 +248,34 @@ public sealed class Parser
     {
         int line = Next().Line;
         string v = Expect(T.Name, null, "Variable de boucle attendue").V;
+
+        // for x, n in m : parcours des lignes d'une matrice (liste de couples), une variable par colonne
+        if (IsOp(","))
+        {
+            var names = new List<string> { v };
+            while (IsOp(",")) { Next(); names.Add(Expect(T.Name, null, "Variable de boucle attendue").V); }
+            if (names.Count > 4) throw new CompileError("Au plus 4 variables (la pile a 4 niveaux)", line);
+            Expect(T.Kw, "in", "« in » attendu");
+            var m = Expression();
+            if (m is not Name mn)
+                throw new CompileError($"for {string.Join(", ", names)} in … : donnez d'abord un nom à la liste (m = [(…), (…)]) puis for {string.Join(", ", names)} in m:", line);
+            var rowBody = Block();
+            var els = new List<Stmt>();
+            if (IsKw("else")) { Next(); els = Block(); }
+            // for r in range(rows(m)): x, n = m[r, 0], m[r, 1] ; puis le corps
+            string r = "r_" + line;
+            var values = names.Select((_, k) => (Expr)new Index(mn, new List<Expr> { new Name(r, line), new Num(k, k.ToString(), line) }, line)).ToList();
+            var loopBody = new List<Stmt> { new Assign(names, values, line) };
+            loopBody.AddRange(rowBody);
+            return new For(r, new Num(0, "0", line), new Call("rows", new List<Expr> { mn }, line), 1, loopBody, els, line);
+        }
+
         Expect(T.Kw, "in", "« in » attendu");
         if (!(Cur.Kind == T.Name && Cur.V == "range" && p + 1 < toks.Count && toks[p + 1].Kind == T.Op && toks[p + 1].V == "("))
         {
             // for x in v : parcours des éléments d'un vecteur / d'une matrice
             var seq = Expression();
+            if (seq is TupleLit st) seq = new ListLit(st.Items, st.Line);   // for x in (1, 2, 3)
             var fbody = Block();
             var felse = new List<Stmt>();
             if (IsKw("else")) { Next(); felse = Block(); }
@@ -329,6 +353,25 @@ public sealed class Parser
             var c = new Cmp(t.V, left, right, t.Line);
             result = result == null ? c : new BoolOp("and", result, c, t.Line); // a < b < c
             left = right;
+        }
+        // x in (1, 5, 7) → x == 1 or x == 5 or x == 7 ; x not in (…) → x != 1 and x != 5 and x != 7
+        bool notIn = IsKw("not") && p + 1 < toks.Count && toks[p + 1].Kind == T.Kw && toks[p + 1].V == "in";
+        if (result == null && (IsKw("in") || notIn))
+        {
+            int line = Cur.Line;
+            if (notIn) Next();
+            Next();
+            var set = Arith();
+            var values = set switch { TupleLit t => t.Items, ListLit l => l.Items, _ => null };
+            if (values == null || values.Count == 0)
+                throw new CompileError("« in » s'emploie avec une liste de valeurs : x in (1, 5, 7)", line);
+            Expr test = null;
+            foreach (var v in values)
+            {
+                var c = new Cmp(notIn ? "!=" : "==", first, v, line);
+                test = test == null ? c : new BoolOp(notIn ? "and" : "or", test, c, line);
+            }
+            return test;
         }
         if (IsKw("is") || IsKw("in")) throw new CompileError($"L'opérateur « {Cur.V} » n'est pas pris en charge", Cur.Line);
         return result ?? first;
@@ -464,6 +507,8 @@ public sealed class Parser
                 }
                 Next();
                 if (items.Count == 0) throw new CompileError("Liste vide : créez une matrice avec zeros(lignes, colonnes)", line);
+                // liste de tuples [(a, b), (c, d)] : chaque tuple est une ligne de matrice, comme [[a, b], [c, d]]
+                items = items.Select(x => x is TupleLit tl ? new ListLit(tl.Items, tl.Line) : x).ToList();
                 return new ListLit(items, line);
             }
             case T.Op when t.V == "{":

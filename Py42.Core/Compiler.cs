@@ -81,7 +81,12 @@ public sealed partial class Compiler
         ["abs"] = "ABS", ["fabs"] = "ABS", ["int"] = "IP", ["trunc"] = "IP",
         ["factorial"] = "N!", ["gamma"] = "GAMMA", ["radians"] = "→RAD", ["degrees"] = "→DEG", ["float"] = ""
     };
-    static readonly HashSet<string> TrigFns = new() { "sin", "cos", "tan", "asin", "acos", "atan", "atan2" };
+    static readonly HashSet<string> PyBuiltins = new()
+    {
+        "input", "print", "round", "abs", "len", "float", "int", "str", "max", "min", "range",
+        "pow", "sum", "list", "type", "divmod", "sorted", "bool", "complex"
+    };
+    static readonly HashSet<string> TrigFns =new() { "sin", "cos", "tan", "asin", "acos", "atan", "atan2" };
     static readonly HashSet<string> Binary2 = new() { "pow", "atan2", "hypot", "max", "min" };
     static readonly Dictionary<string, string> Inv = new() { ["<"] = ">=", [">"] = "<=", ["<="] = ">", [">="] = "<", ["=="] = "!=", ["!="] = "==" };
     static readonly Dictionary<string, string> Flip = new() { ["<"] = ">", [">"] = "<", ["<="] = ">=", [">="] = "<=", ["=="] = "==", ["!="] = "!=" };
@@ -106,16 +111,38 @@ public sealed partial class Compiler
         }
         if (main.Count == 0 && funcs.Count == 0) throw new CompileError("Le programme est vide", 1);
 
+        // Déclarations au niveau du module + def main() + appel main() final : main appelle
+        // lui-même ces déclarations (XEQ en tête), pour qu'un XEQ "MAIN" sur la calculatrice les exécute.
+        // Sans appel main() (ou appel en dernier) : idem, le code du module n'est fait que de déclarations.
+        string pnSrc = o.ProgramName.Trim().Length > 0 ? o.ProgramName.Trim() : "MAIN";
+        string? initLabel = null;
+        if (funcs.TryGetValue("main", out var mainDef) && mainDef.Params.Count == 0 && main.Count > 0)
+        {
+            int last = main.FindLastIndex(IsMainCall);
+            if (last < 0 || last == main.Count - 1)
+            {
+                main.RemoveAll(IsMainCall);
+                if (main.Count > 0)
+                {
+                    initLabel = Label(FreeLabel(pnSrc, "init"));
+                    warnings.Add($"Les déclarations placées avant main() sont rangées sous LBL \"{initLabel}\", appelé au début de main");
+                }
+            }
+        }
+
         Analyse(main);
         InferTypes(main);
 
         var entryIdx = new List<int>();
         var entries = new List<string>();
+        // main en premier quand il appelle l'initialisation : c'est le point d'entrée du programme
+        var order = funcs.Values.OrderBy(d => initLabel != null && d.Name == "main" ? 0 : 1).ToList();
+        if (initLabel != null) GenFunc(order[0]);
         if (main.Count > 0)
         {
-            string pn = Label(o.ProgramName.Trim().Length > 0 ? o.ProgramName.Trim() : "MAIN");
-            if (funcs.Keys.Any(f => Label(f) == pn))
-                throw new CompileError($"Le nom du programme « {pn} » est déjà celui d'une fonction", 0);
+            string pn = initLabel ?? Label(FreeLabel(pnSrc, "prog"));
+            if (initLabel == null && pn != Label7(pnSrc))
+                warnings.Add($"Le nom du programme « {pnSrc} » est déjà celui d'une fonction : le programme principal s'appelle « {pn} »");
             curLine = main[0].Line;
             entryIdx.Add(code.Count);
             Emit(K.LblG, pn);
@@ -127,7 +154,10 @@ public sealed partial class Compiler
             curLine = main[^1].Line;
             Emit(K.Rtn);
         }
-        foreach (var d in funcs.Values)
+        foreach (var d in order.Skip(initLabel != null ? 1 : 0)) GenFunc(d);
+        curLine = 0;
+
+        void GenFunc(Def d)
         {
             fn = d;
             rename = renames[d.Name];
@@ -141,10 +171,10 @@ public sealed partial class Compiler
                 Emit(K.Sto, Var(d.Params[i]));
                 if (i > 0) Emit(K.Stk, "R↓");
             }
+            if (initLabel != null && d.Name == "main") Emit(K.Xeq, initLabel);
             GenBlock(d.Body);
             if (d.Body.Count == 0 || d.Body[^1] is not Return) { curLine = d.Line; Emit(K.Rtn); }
         }
-        curLine = 0;
         Emit(K.End);
 
         // Après chaque label global : les MVAR (obligatoirement juste après le label), puis les modes
@@ -178,6 +208,27 @@ public sealed partial class Compiler
             LocalLabels = locals
         };
     }
+
+    string Label7(string src) { string n = Case(src); return n.Length > 7 ? n[..7] : n; }
+
+    /// <summary>Label voulu s'il n'est pas déjà celui d'une fonction, sinon repli (INIT, INIT2…)</summary>
+    string FreeLabel(string want, string fallback)
+    {
+        bool Taken(string n) => funcs.Keys.Any(f => Label7(f) == n);
+        string l = Label7(want);
+        if (!Taken(l)) return l;
+        l = Label7(fallback);
+        for (int k = 2; Taken(l); k++) l = Label7(fallback) + k;
+        return l;
+    }
+
+    /// <summary>main() seul, ou if __name__ == "__main__": main()</summary>
+    static bool IsMainCall(Stmt s) => s switch
+    {
+        ExprStmt { E: Call { Func: "main", Args.Count: 0 } } => true,
+        If { Cond: Cmp { A: Name { Id: "__name__" } }, Else.Count: 0 } i => i.Body.Count > 0 && i.Body.All(IsMainCall),
+        _ => false
+    };
 
     // ======================================================================
     //  Analyse des portées (variables locales des fonctions)
@@ -218,6 +269,21 @@ public sealed partial class Compiler
         foreach (var i in infos.Values) foreach (var n in i.All) sourceNames.Add(n);
         foreach (var n in mainInfo.Assigned) assignedAnywhere.Add(n);
         foreach (var i in infos.Values) foreach (var n in i.Assigned) assignedAnywhere.Add(n);
+
+        // variable lue mais jamais affectée : faute de frappe probable (Python : NameError, DM42 : Nonexistent)
+        var used = new HashSet<string>(mainInfo.Used);
+        foreach (var i in infos.Values) used.UnionWith(i.Used);
+        foreach (var n in used.Where(n => !assignedAnywhere.Contains(n) && n != "pi" && n != "e" && !funcs.ContainsKey(n)).OrderBy(n => n))
+        {
+            var close = assignedAnywhere.Where(a => a.Length > 2 && (a.Contains(n, StringComparison.OrdinalIgnoreCase) || n.Contains(a, StringComparison.OrdinalIgnoreCase)
+                                                    || Distance(a.ToLowerInvariant(), n.ToLowerInvariant()) <= 2)).Take(2).ToList();
+            warnings.Add($"Variable « {n} » lue mais jamais affectée : erreur « Nonexistent » sur la calculatrice" +
+                         (close.Count > 0 ? $" (vouliez-vous dire « {string.Join(" » ou « ", close)} » ?)" : ""));
+        }
+
+        // input = 1 puis input("…") : accepté sur HP42, mais en Python la variable masque la fonction
+        foreach (var n in assignedAnywhere.Where(PyBuiltins.Contains).OrderBy(n => n))
+            warnings.Add($"« {n} » est une fonction Python : la variable « {n} » la masque (en Python, {n}(…) échouera ensuite). Renommez-la, par exemple « {n}_v »");
 
         // Récursivité : les variables HP42 sont globales, donc interdite
         var state = new Dictionary<string, int>();
@@ -390,6 +456,18 @@ public sealed partial class Compiler
 
     bool IsUser(string f) => funcs.ContainsKey(f);
     bool allowMulti, allowVoid;
+    /// <summary>Distance d'édition (Levenshtein) : noms voisins pour suggérer une faute de frappe.</summary>
+    static int Distance(string a, string b)
+    {
+        var d = new int[a.Length + 1, b.Length + 1];
+        for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+        for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+        for (int i = 1; i <= a.Length; i++)
+            for (int j = 1; j <= b.Length; j++)
+                d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+        return d[a.Length, b.Length];
+    }
+
     bool IsConstName(Name n) => !n.Raw && (n.Id == "pi" || n.Id == "e") && !assignedAnywhere.Contains(n.Id);
 
     static string FmtNum(double v, string? raw)
@@ -459,9 +537,7 @@ public sealed partial class Compiler
             case "input": throw new CompileError("input() s'utilise seul : x = input(...) ou x = float(input(...))", c.Line);
             case "print": throw new CompileError("print() ne renvoie pas de valeur", c.Line);
             case "dmy": throw new CompileError("dmy() renvoie 3 valeurs : j, m, a = dmy(date)", c.Line);
-            case "round":
-                throw new CompileError("round() n'a pas d'équivalent direct sur HP42. Utilisez int() (partie entière, IP), floor() ou ceil().", c.Line);
-            case "floor": case "ceil":
+            case "round": case "floor": case "ceil":
                 throw new CompileError($"{c.Func}() n'est pas encore accepté à cet endroit : calculez-le d'abord dans une variable (n = {c.Func}(x))", c.Line);
         }
         int mn = NeedMatCall(c);
@@ -529,6 +605,42 @@ public sealed partial class Compiler
             case Call { Func: "solve", Args.Count: 2 } sc:
                 // solve(A, b) = inv(A) @ b
                 return Prepare(new Bin("@", new Call("inv", new() { sc.Args[0] }, sc.Line), sc.Args[1], sc.Line), root);
+            case Call { Func: "round" } rc when !IsUser(rc.Func):
+            {
+                // round(x, n) = IP(x·10^n + 0,5·SIGN(x)) / 10^n : au plus proche, les demis s'éloignent de zéro
+                // (comme RND de la HP-42S), sans toucher au mode d'affichage FIX
+                int l = rc.Line;
+                if (rc.Args.Count != 2)
+                    throw new CompileError("round() demande le nombre de décimales : round(x, 2), ou round(x, 0) pour un entier", l);
+                if (Parser.ConstValue(rc.Args[1]) is not double nd || nd != Math.Floor(nd) || nd < 0 || nd > 11)
+                    throw new CompileError("round(x, n) : n doit être un nombre entier constant de 0 à 11", l);
+                int nDec = (int)nd;
+                if (Parser.ConstValue(rc.Args[0]) is double cx)
+                {
+                    // constante : calculée dès la conversion
+                    // en décimal, comme la calculatrice (BCD) : round(1.005, 2) = 1.01
+                    double r = (double)Math.Round((decimal)cx, nDec, MidpointRounding.AwayFromZero);
+                    string txt = Math.Abs(r).ToString("0.###########", System.Globalization.CultureInfo.InvariantCulture);
+                    var n = new Num(Math.Abs(r), txt, l);
+                    return r < 0 ? new Unary("-", n, l) : n;
+                }
+                var x = Prepare(rc.Args[0], false);
+                if (!(x is Num or Name or Const or Unary { A: Num or Name or Const }))
+                {
+                    // x sert deux fois : calculé une seule fois dans une variable temporaire
+                    var px = Fit(x, 4);
+                    CheckDepth(px, 0);
+                    Gen(px);
+                    string t = NewTemp();
+                    Emit(K.Sto, t);
+                    x = new Name(t, l, true);
+                }
+                var kNum = new Num(Math.Pow(10, nDec), "1" + new string('0', nDec), l);
+                var sign = new Call("SIGN", new() { x }, l);
+                Expr scaled = nDec == 0 ? x : new Bin("*", x, kNum, l);
+                Expr ip = new Call("int", new() { new Bin("+", scaled, new Bin("*", new Num(0.5, "0.5", l), sign, l), l) }, l);
+                return nDec == 0 ? ip : new Bin("/", ip, kNum, l);
+            }
             case Call { Func: "floor" or "ceil" } fc when !IsUser(fc.Func):
             {
                 // floor(x) = x - (x MOD 1), ceil(x) = x + (-x MOD 1) : le MOD de la HP-42S a le signe du diviseur,
@@ -560,7 +672,7 @@ public sealed partial class Compiler
             }
             case Call c: return c with { Args = c.Args.Select(a => a is Str ? a : Prepare(a, false)).ToList() };
             case ListLit l: return HoistList(l);
-            case TupleLit t: throw new CompileError("Les tuples ne servent qu'à zeros((lignes, colonnes))", t.Line);
+            case TupleLit t: throw new CompileError("Tuple (a, b) non accepté ici. Il s'emploie dans : a, b = …, return a, b, for x, n in m, une liste de couples [(…), (…)], x in (…), print(…), zeros((l, c))", t.Line);
             case Index ix: return PrepareIndex(ix);
             case Attr a: return a with { Target = Prepare(a.Target, false) };
             case Bin b: { var a = Prepare(b.A, false); var bb = Prepare(b.B, false); return b with { A = a, B = bb }; }
@@ -1171,11 +1283,24 @@ public sealed partial class Compiler
         if (e is Bin { Op: "+" } b && IsTextConcat(b))
             return TextParts(b.A).Concat(TextParts(b.B));
         if (e is Call { Func: "str", Args.Count: 1 } sc) return new[] { sc.Args[0] };
+        if (e is TupleLit t)
+        {
+            // print((j, m, a)) affiche « (12, 5, 2024) » comme Python
+            var parts = new List<Expr> { new Str("(", t.Line) };
+            for (int i = 0; i < t.Items.Count; i++)
+            {
+                if (i > 0) parts.Add(new Str(", ", t.Line));
+                parts.AddRange(TextParts(t.Items[i]));
+            }
+            parts.Add(new Str(")", t.Line));
+            return parts;
+        }
         return new[] { e };
     }
 
     /// <summary>Valeur entière à afficher sans décimales (AIP) : floor, ceil, int, trunc.</summary>
-    static bool IsIntegerValue(Expr e) => e is Call { Func: "floor" or "ceil" or "int" or "trunc", Args.Count: 1 };
+    static bool IsIntegerValue(Expr e) => e is Call { Func: "floor" or "ceil" or "int" or "trunc", Args.Count: 1 }
+        || (e is Call { Func: "round", Args.Count: 2 } rc && Parser.ConstValue(rc.Args[1]) == 0);
 
     void GenPrint(Call c, bool prompt = false, bool view = true)
     {

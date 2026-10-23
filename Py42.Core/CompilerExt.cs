@@ -641,6 +641,14 @@ public sealed partial class Compiler
         else
             rows = l.Items.Select(x => new List<Expr> { x }).ToList();   // vecteur colonne n×1
 
+        // une case de matrice HP42 contient un nombre ou un court texte, jamais une autre liste
+        foreach (var row in rows)
+            foreach (var x in row)
+                if (x is Name nm && matrixNames.Contains(nm.Id))
+                    throw new CompileError($"« {nm.Id} » est une liste : une matrice HP42 ne peut pas en contenir une autre. " +
+                        "Rangez toutes les valeurs dans un seul tableau à 2 dimensions, une ligne par cas (complétée par des 0 si elle est plus courte) : " +
+                        "table = [[…], […]], puis table[i][j]", l.Line);
+
         int nr = rows.Count, nc = rows[0].Count;
         Emit(K.Num, nr.ToString());
         Emit(K.Num, nc.ToString());
