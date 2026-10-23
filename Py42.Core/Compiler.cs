@@ -93,7 +93,7 @@ public sealed partial class Compiler
     // ======================================================================
     CompileResult Run(string src)
     {
-        var ast = Parser.Parse(Dedent(src));
+        var ast = Parser.Parse(Dedent(Lexer.BlankDocstrings(src)));
         var main = new List<Stmt>();
         foreach (var s in ast)
         {

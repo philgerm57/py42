@@ -26,9 +26,57 @@ public static class Lexer
     static readonly Regex NumRx = new(@"\G(\d[\d_]*\.[\d_]*|\.\d[\d_]*|\d[\d_]*)([eE][+-]?\d+)?", RegexOptions.Compiled);
     static readonly Regex IdRx = new(@"\G[\p{L}_][\p{L}\p{Nd}_]*", RegexOptions.Compiled);
 
+    /// <summary>
+    /// Commentaires multilignes """ ... """ ou ''' ... ''' (docstrings) : remplacés par des espaces,
+    /// sauts de ligne conservés pour garder les numéros de ligne. Rien n'est produit dans le RPN.
+    /// Ils doivent commencer une ligne (comme une docstring) : x = """...""" n'est pas accepté.
+    /// </summary>
+    public static string BlankDocstrings(string src)
+    {
+        src = src.Replace("\r\n", "\n").Replace('\r', '\n');
+        if (!src.Contains("\"\"\"") && !src.Contains("'''")) return src;
+        var sb = new StringBuilder(src);
+        int line = 1, i = 0;
+        bool lineStart = true;   // seulement des espaces depuis le début de la ligne
+        while (i < src.Length)
+        {
+            char c = src[i];
+            if (c == '\n') { line++; lineStart = true; i++; continue; }
+            if (c == ' ' || c == '\t') { i++; continue; }
+            if (c == '#') { while (i < src.Length && src[i] != '\n') i++; continue; }
+            bool triple = (c == '"' || c == '\'') && i + 2 < src.Length && src[i + 1] == c && src[i + 2] == c;
+            if (triple)
+            {
+                if (!lineStart)
+                    throw new CompileError("Les chaînes \"\"\" … \"\"\" ne servent que de commentaires : placez-les en début de ligne", line);
+                string q = new string(c, 3);
+                int end = src.IndexOf(q, i + 3, StringComparison.Ordinal);
+                if (end < 0) throw new CompileError($"Commentaire {q} non terminé", line);
+                for (int k = i; k < end + 3; k++)
+                    if (src[k] == '\n') line++;
+                    else sb[k] = ' ';
+                i = end + 3;
+                lineStart = false;
+                continue;
+            }
+            if (c == '"' || c == '\'')
+            {
+                // chaîne ordinaire : on la saute pour ne pas y chercher de """
+                int j = i + 1;
+                while (j < src.Length && src[j] != c && src[j] != '\n') j += src[j] == '\\' ? 2 : 1;
+                i = Math.Min(src.Length, j + 1);
+                lineStart = false;
+                continue;
+            }
+            lineStart = false;
+            i++;
+        }
+        return sb.ToString();
+    }
+
     public static List<Tok> Tokenize(string src)
     {
-        var lines = src.Replace("\r", "").Split('\n');
+        var lines = BlankDocstrings(src).Split('\n');
         var toks = new List<Tok>();
         var indents = new Stack<int>();
         indents.Push(0);

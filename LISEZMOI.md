@@ -44,6 +44,7 @@ Sur une vraie HP-42S, saisir le listing à la main (pas de liaison).
 - Nombres, variables, `+ - * / ** % //`, moins unaire, parenthèses.
 - `if / elif / else`, `while` (+ `else`), `for i in range(...)` (+ `else`, pas constant positif ou négatif), `break`, `continue`, `pass`, `assert condition, "message"`.
 - Comparaisons `< > <= >= == !=`, chaînées (`0 < x < 10`), `and`, `or`, `not`.
+- Commentaires `# …` et blocs `"""` … `"""` (ou `'''`) en début de ligne, docstrings comprises : ignorés, rien dans le RPN.
 - `def f(a, b, ...)` avec au plus 4 paramètres, `return x` ou `return a, b` (récupéré par `a, b = f(...)`), appels imbriqués, `global`.
 - Affectations multiples `a, b = b, a % b` ou `(a, b) = (b, a % b)` (jusqu'à 4), affectations combinées `+= -= *= /= **= %= //=`.
 - `j, m, a = dmy(d)` découpe une date au format JJ.MMAAAA (D.MY de la DM42) : `12.052024` donne 12, 5, 2024.
