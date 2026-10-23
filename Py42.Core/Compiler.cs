@@ -420,7 +420,7 @@ public sealed partial class Compiler
     int Need(Expr e) => e switch
     {
         Num or Const or Name => 1,
-        Str s when s.Value.Length > 6 => throw new CompileError($"Texte « {s.Value} » trop long : une variable ou un élément de matrice HP42 contient 6 caractères au plus", s.Line),
+        Str s when s.Value.Length > 6 => throw new CompileError($"Texte « {s.Value} » trop long : une variable ou un élément de matrice HP42 contient 6 caractères au plus. Pour afficher un texte et une valeur : print(\"texte\", x) ou print(\"texte\" + str(x))", s.Line),
         Str => 1,
         Unary u => Need(u.A),
         Bin b when CpxConst(b) != null => 2,
@@ -1161,8 +1161,34 @@ public sealed partial class Compiler
     }
 
     /// <summary>print(...) → ALPHA + AVIEW ; prompt(...) → ALPHA + PROMPT (arrêt, saisie d'une valeur, R/S).</summary>
+    /// <summary>Concaténation de texte : "a" + x, str(x) + "b"…</summary>
+    static bool IsTextConcat(Expr e) =>
+        e is Str || e is Call { Func: "str", Args.Count: 1 } || (e is Bin { Op: "+" } b && (IsTextConcat(b.A) || IsTextConcat(b.B)));
+
+    /// <summary>"P Vap :" + floor(v) → morceaux affichés à la suite sans espace ; str(x) → x.</summary>
+    static IEnumerable<Expr> TextParts(Expr e)
+    {
+        if (e is Bin { Op: "+" } b && IsTextConcat(b))
+            return TextParts(b.A).Concat(TextParts(b.B));
+        if (e is Call { Func: "str", Args.Count: 1 } sc) return new[] { sc.Args[0] };
+        return new[] { e };
+    }
+
+    /// <summary>Valeur entière à afficher sans décimales (AIP) : floor, ceil, int, trunc.</summary>
+    static bool IsIntegerValue(Expr e) => e is Call { Func: "floor" or "ceil" or "int" or "trunc", Args.Count: 1 };
+
     void GenPrint(Call c, bool prompt = false, bool view = true)
     {
+        // texte concaténé : chaque argument devient une suite de morceaux ; seuls les arguments sont séparés par une espace
+        var parts = new List<(Expr E, bool Space)>();
+        for (int a = 0; a < c.Args.Count; a++)
+        {
+            bool first = true;
+            foreach (var p in TextParts(c.Args[a])) { parts.Add((p, a > 0 && first)); first = false; }
+        }
+        if (parts.Count != c.Args.Count || c.Args.Any(x => x is Call { Func: "str" }))
+            c = c with { Args = parts.Select(p => p.E).ToList() };
+        var spaces = parts.Select(p => p.Space).ToList();
         var args = c.Args;
         if (args.Count == 0)
         {
@@ -1203,12 +1229,19 @@ public sealed partial class Compiler
         }
         for (int i = 0; i < ps.Count; i++)
         {
-            if (i > 0) { pending.Append(' '); total++; }
+            if (spaces[i]) { pending.Append(' '); total++; }
             if (ps[i] is Str s) { pending.Append(s.Value); total += s.Value.Length; continue; }
             Flush();
             if (!started) { Emit(K.Cla); started = true; }
             if (ps[i] is Name n && !IsConstName(n)) Emit(K.ArclVar, n.Raw ? n.Id : Var(n.Id));
-            else { var f = Fit(ps[i], 4); CheckDepth(f, 0); Gen(f); Emit(K.ArclX); }
+            else
+            {
+                var f = Fit(ps[i], 4);
+                CheckDepth(f, 0);
+                Gen(f);
+                // entier (floor, int…) : AIP l'ajoute sans décimales, ARCL suivrait le format d'affichage (12.0000)
+                if (IsIntegerValue(args[i])) Emit(K.Cmd, "AIP"); else Emit(K.ArclX);
+            }
             total += 12;
         }
         Flush();

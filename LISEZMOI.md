@@ -50,6 +50,7 @@ Sur une vraie HP-42S, saisir le listing à la main (pas de liaison).
 - `j, m, a = dmy(d)` découpe une date au format JJ.MMAAAA (D.MY de la DM42) : `12.052024` donne 12, 5, 2024.
 - `x = input("...")`, `x = float(input(...))`, `x = int(input(...))` → `INPUT "X"`.
 - `print("texte", x, ...)` → `"texte"`, `ARCL`, `AVIEW` ; `print(x)` → `VIEW "X"`.
+- Concaténation : `print("P Vap :" + str(v) + " hPa")` ou `print("N=" + floor(n))` → morceaux à la suite, sans espace ; `floor`, `ceil`, `int` sont ajoutés par `AIP` (sans décimales).
 - `x = prompt("PRIX ?")` ou `x = PROMPT("PRIX ?")` → le texte s'affiche (`PROMPT`), on tape la valeur puis R/S. Seul, `PROMPT("PRET")` fait une simple pause. `MENU(...)` et `VARMENU(...)` en majuscules marchent aussi.
 - `import math`, `from math import ...` ; fonctions : `sqrt sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh exp expm1 log log1p log10 abs fabs int trunc floor ceil factorial gamma radians degrees hypot pow max min`, constantes `pi` et `e`.
 - `floor(x)` et `ceil(x)` → `x - (x MOD 1)` et `x + (-x MOD 1)` : le MOD de la HP-42S a le signe du diviseur, donc le résultat est juste aussi pour x négatif ; une constante est calculée dès la conversion. `round()` n'est pas pris en charge.
