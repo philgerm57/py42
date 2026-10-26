@@ -189,3 +189,9 @@ Le champ INPUT donne les réponses dans l'ordre : `INPUT`, `prompt()`, une valeu
 - La HP-42S ne distingue pas les majuscules : `b` et `B` sont la même variable (Py42 le signale).
 - La HP-42S d'origine a 8 niveaux de retour pour `XEQ` ; la DM42 en a davantage.
 - Le simulateur calcule en double précision ; la DM42 calcule en décimal sur 34 chiffres, de petites différences d'arrondi sont possibles.
+
+## Licence
+
+GNU GPLv3, comme [DM42 Editor](https://github.com/philgerm57/DM42Editor) qui intègre Py42.Core.
+
+HP-42S est une marque de HP Inc. ; DM42 est un produit SwissMicros. Ce projet n'est affilié à aucune de ces sociétés.
