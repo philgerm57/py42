@@ -23,6 +23,7 @@ for (int i = 0; i < args.Length; i++)
         case "--entrees": entrees = args[++i]; break;
         case "--exemples": examples = true; break;
         case "--vars": dumpVars = true; break;
+        case "--en": Tr.English = true; break;
         default: input = args[i]; break;
     }
 }
@@ -38,20 +39,20 @@ int Process(string title, string src, string? entry, string stack, string inputs
         var text = res.Listing(numbers);
         if (output != null) File.WriteAllText(output, text, new UTF8Encoding(false));
         else Console.Write(text);
-        foreach (var w in res.Warnings) Console.Error.WriteLine("Avertissement : " + w);
+        foreach (var w in res.Warnings) Console.Error.WriteLine(Tr.T("Avertissement : {0}".Replace("{0}", w)));
         if (rawOut != null)
         {
             // fichier .raw pour la DM42 / Free42 (encodeur dm42dll)
             var bytes = Py42.Raw.RawExport.Encode(res, out var rawErrors);
             if (bytes == null)
             {
-                foreach (var er in rawErrors.Distinct()) Console.Error.WriteLine("Erreur d'encodage : " + er);
+                foreach (var er in rawErrors.Distinct()) Console.Error.WriteLine(Tr.T("Erreur d'encodage : " + er));
                 return 1;
             }
             File.WriteAllBytes(rawOut, bytes);
             Console.Error.WriteLine($"{rawOut} : {bytes.Length} octets");
         }
-        Console.Error.WriteLine($"{res.Code.Count} pas, {res.LocalLabels} labels locaux, pile max {res.MaxStack}, variables : {string.Join(" ", res.Variables)}");
+        Console.Error.WriteLine(Tr.T($"{res.Code.Count} pas, {res.LocalLabels} labels locaux, pile max {res.MaxStack}, variables : {string.Join(" ", res.Variables)}"));
         if (entry != null)
         {
             var sim = Simulator.Run(res.Code, entry, Nums(stack), Nums(inputs));
@@ -80,7 +81,7 @@ int Process(string title, string src, string? entry, string stack, string inputs
     }
     catch (CompileError e)
     {
-        Console.Error.WriteLine(e.Line > 0 ? $"Erreur ligne {e.Line} : {e.Message}" : $"Erreur : {e.Message}");
+        Console.Error.WriteLine(e.Line > 0 ? Tr.T($"Erreur ligne {e.Line} : {e.Message}") : Tr.T($"Erreur : {e.Message}"));
         return 1;
     }
 }

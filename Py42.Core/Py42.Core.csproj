@@ -5,4 +5,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="py42_en.txt" LogicalName="py42_en.txt" />
+  </ItemGroup>
 </Project>

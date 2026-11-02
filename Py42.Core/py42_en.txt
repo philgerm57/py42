@@ -1,0 +1,400 @@
+SIN(x) : sinus (mode d'angle courant)	SIN(x) : sine (current angle mode)
+COS(x) : cosinus (mode d'angle courant)	COS(x) : cosine (current angle mode)
+TAN(x) : tangente (mode d'angle courant)	TAN(x) : tangent (current angle mode)
+ASIN(x) : arc sinus	ASIN(x) : arc sine
+ACOS(x) : arc cosinus	ACOS(x) : arc cosine
+ATAN(x) : arc tangente	ATAN(x) : arc tangent
+SINH(x) : sinus hyperbolique	SINH(x) : hyperbolic sine
+COSH(x) : cosinus hyperbolique	COSH(x) : hyperbolic cosine
+TANH(x) : tangente hyperbolique	TANH(x) : hyperbolic tangent
+ASINH(x) : argument sinus hyperbolique	ASINH(x) : inverse hyperbolic sine
+ACOSH(x) : argument cosinus hyperbolique	ACOSH(x) : inverse hyperbolic cosine
+ATANH(x) : argument tangente hyperbolique	ATANH(x) : inverse hyperbolic tangent
+LN(x) : logarithme népérien	LN(x) : natural logarithm
+LOG(x) : logarithme décimal	LOG(x) : common logarithm
+LN1plus(x) : ln(1 + x) précis pour x petit (LN1+X)	LN1plus(x) : ln(1 + x), accurate for small x (LN1+X)
+Eto(x) : e puissance x (E↑X)	Eto(x) : e to the power x (E↑X)
+EtoMinus1(x) : e^x - 1 précis pour x petit (E↑X-1)	EtoMinus1(x) : e^x - 1, accurate for small x (E↑X-1)
+CommonExp(x) : 10 puissance x (10↑X)	CommonExp(x) : 10 to the power x (10↑X)
+EXP10(x) : 10 puissance x (10↑X)	EXP10(x) : 10 to the power x (10↑X)
+SQRT(x) : racine carrée	SQRT(x) : square root
+Reciprocal(x) : inverse 1/x (1/X), inverse d'une matrice	Reciprocal(x) : reciprocal 1/x (1/X), inverse of a matrix
+ABS(x) : valeur absolue, module d'un complexe	ABS(x) : absolute value, modulus of a complex
+IP(x) : partie entière	IP(x) : integer part
+FP(x) : partie fractionnaire	FP(x) : fractional part
+RND(x) : arrondi au format d'affichage (FIX n)	RND(x) : round to the display format (FIX n)
+SIGN(x) : signe (-1, 0 ou 1)	SIGN(x) : sign (-1, 0 or 1)
+GAMMA(x) : fonction gamma	GAMMA(x) : gamma function
+Factorial(n) : factorielle (N!)	Factorial(n) : factorial (N!)
+toDEG(x) : radians → degrés (→DEG)	toDEG(x) : radians → degrees (→DEG)
+toRAD(x) : degrés → radians (→RAD)	toRAD(x) : degrees → radians (→RAD)
+toHMS(h) : heures décimales → H.MMSS (→HMS)	toHMS(h) : decimal hours → H.MMSS (→HMS)
+theta, r = toPOL(y, x) : coordonnées polaires (→POL, angle selon DEG/RAD)	theta, r = toPOL(y, x) : polar coordinates (→POL, angle per DEG/RAD)
+y, x = toREC(theta, r) : coordonnées rectangulaires (→REC)	y, x = toREC(theta, r) : rectangular coordinates (→REC)
+toHR(hms) : H.MMSS → heures décimales (→HR)	toHR(hms) : H.MMSS → decimal hours (→HR)
+toDEC(n) : octal → décimal (→DEC)	toDEC(n) : octal → decimal (→DEC)
+toOCT(n) : décimal → octal (→OCT)	toOCT(n) : decimal → octal (→OCT)
+Percent(x, p) : x × p / 100 (%)	Percent(x, p) : x × p / 100 (%)
+PercentCH(ancien, nouveau) : variation en % (%CH)	PercentCH(old, new) : percent change (%CH)
+COMB(n, k) : combinaisons	COMB(n, k) : combinations
+PERM(n, k) : arrangements	PERM(n, k) : permutations
+MOD(y, x) : reste de y / x	MOD(y, x) : remainder of y / x
+HMSplus(a, b) : somme en H.MMSS (HMS+)	HMSplus(a, b) : sum in H.MMSS (HMS+)
+HMSminus(a, b) : différence en H.MMSS (HMS-)	HMSminus(a, b) : difference in H.MMSS (HMS-)
+HMSADD(a, b) : somme en H.MMSS (HMS+)	HMSADD(a, b) : sum in H.MMSS (HMS+)
+HMSSUB(a, b) : différence en H.MMSS (HMS-)	HMSSUB(a, b) : difference in H.MMSS (HMS-)
+ROTXY(y, n) : rotation de bits de y de n positions	ROTXY(y, n) : rotate the bits of y by n positions
+BASEplus(y, x) : addition entière 36 bits (BASE+)	BASEplus(y, x) : 36-bit integer addition (BASE+)
+BASEminus(y, x) : soustraction entière 36 bits (BASE-)	BASEminus(y, x) : 36-bit integer subtraction (BASE-)
+BASEtimes(y, x) : multiplication entière 36 bits (BASE×)	BASEtimes(y, x) : 36-bit integer multiplication (BASE×)
+BASEdivide(y, x) : division entière 36 bits (BASE÷)	BASEdivide(y, x) : 36-bit integer division (BASE÷)
+BASEplusMinus(x) : opposé en complément à 2 (BASE±)	BASEplusMinus(x) : two's complement negation (BASE±)
+BINM() : mode binaire	BINM() : binary mode
+OCTM() : mode octal	OCTM() : octal mode
+DECM() : mode décimal	DECM() : decimal mode
+HEXM() : mode hexadécimal	HEXM() : hexadecimal mode
+NEWMAT(lignes, colonnes) : nouvelle matrice nulle	NEWMAT(rows, cols) : new zero matrix
+RCL(n) : contenu du registre n (0-99), ex. RCL(12) = Σx² après Σ+	RCL(n) : contents of register n (0-99), e.g. RCL(12) = Σx² after Σ+
+STO(x, n) : range x dans le registre n (0-99)	STO(x, n) : stores x in register n (0-99)
+COMPLEX(re, im) : nombre ou matrice complexe ; re, im = COMPLEX(z) les sépare	COMPLEX(re, im) : complex number or matrix; re, im = COMPLEX(z) splits them
+DET(m) : déterminant	DET(m) : determinant
+INVRT(m) : inverse	INVRT(m) : inverse
+TRANS(m) : transposée	TRANS(m) : transpose
+FNRM(m) : norme de Frobenius	FNRM(m) : Frobenius norm
+RNRM(m) : norme des lignes (max des sommes des |a|)	RNRM(m) : row norm (max of the sums of |a|)
+RSUM(m) : sommes des lignes (vecteur colonne)	RSUM(m) : row sums (column vector)
+UVEC(v) : vecteur unitaire	UVEC(v) : unit vector
+DOT(u, v) : produit scalaire	DOT(u, v) : dot product
+CROSS(u, v) : produit vectoriel	CROSS(u, v) : cross product
+l, c = whatDIM(m) : dimensions (DIM?)	l, c = whatDIM(m) : dimensions (DIM?)
+EDIT(m) : ouvre l'éditeur de matrice sur m	EDIT(m) : opens the matrix editor on m
+StatPlus(y, x) : ajoute un point (Σ+)	StatPlus(y, x) : adds a point (Σ+)
+StatMinus(y, x) : retire un point (Σ-)	StatMinus(y, x) : removes a point (Σ-)
+CLStat() : efface les statistiques (CLΣ)	CLStat() : clears the statistics (CLΣ)
+ALLStat() : statistiques complètes (ALLΣ)	ALLStat() : full statistics (ALLΣ)
+LINStat() : statistiques linéaires (LINΣ)	LINStat() : linear statistics (LINΣ)
+StatREG(n) : premier registre statistique (ΣREG)	StatREG(n) : first statistics register (ΣREG)
+StatWhichREG() : premier registre statistique (ΣREG?)	StatWhichREG() : first statistics register (ΣREG?)
+my, mx = MEAN() : moyennes (Y = moyenne des y, X = moyenne des x)	my, mx = MEAN() : means (Y = mean of y, X = mean of x)
+sy, sx = SDEV() : écarts-types	sy, sx = SDEV() : standard deviations
+sy, sx = SUM() : sommes des y et des x	sy, sx = SUM() : sums of y and x
+WMEAN() : moyenne des x pondérée par les y	WMEAN() : mean of x weighted by y
+CORR() : coefficient de corrélation	CORR() : correlation coefficient
+SLOPE() : pente du modèle	SLOPE() : slope of the model
+YINT() : ordonnée à l'origine du modèle	YINT() : y-intercept of the model
+FCSTX(y) : x prévu pour y	FCSTX(y) : forecast x for y
+FCSTY(x) : y prévu pour x	FCSTY(x) : forecast y for x
+LINF() : modèle linéaire	LINF() : linear model
+LOGF() : modèle logarithmique	LOGF() : logarithmic model
+EXPF() : modèle exponentiel	EXPF() : exponential model
+PWRF() : modèle puissance	PWRF() : power model
+BEST() : meilleur modèle	BEST() : best model
+DATE() : date du jour, au format réglé (DMY() : JJ.MMAAAA)	DATE() : today's date, in the set format (DMY(): DD.MMYYYY)
+TIME() : heure H.MMSS (toHR(TIME()) : heures décimales)	TIME() : time H.MMSS (toHR(TIME()): decimal hours)
+DDAYS(d1, d2) : nombre de jours de d1 à d2, au format réglé	DDAYS(d1, d2) : number of days from d1 to d2, in the set format
+DMY() : format de date JJ.MMAAAA	DMY() : date format DD.MMYYYY
+MDY() : format de date MM.JJAAAA	MDY() : date format MM.DDYYYY
+YMD() : format de date AAAA.MMJJ	YMD() : date format YYYY.MMDD
+FIX(n) : affichage avec n décimales (0 à 11)	FIX(n) : display with n decimals (0 to 11)
+SCI(n) : notation scientifique	SCI(n) : scientific notation
+ENG(n) : notation ingénieur	ENG(n) : engineering notation
+ALL() : affichage de tous les chiffres	ALL() : display all digits
+RAD() : angles en radians	RAD() : angles in radians
+DEG() : angles en degrés	DEG() : angles in degrees
+GRAD() : angles en grades	GRAD() : angles in grads
+RECT() : complexes en rectangulaire	RECT() : complex numbers in rectangular form
+POLAR() : complexes en polaire	POLAR() : complex numbers in polar form
+CPXRES() : résultats complexes autorisés	CPXRES() : complex results allowed
+REALRES() : résultats réels seulement	REALRES() : real results only
+RDXcomma() : virgule décimale (RDX,)	RDXcomma() : decimal comma (RDX,)
+RDXperiod() : point décimal (RDX.)	RDXperiod() : decimal point (RDX.)
+CLLCD() : efface l'écran	CLLCD() : clears the screen
+CLD() : efface le message affiché	CLD() : clears the displayed message
+PSE() : pause d'environ 1 seconde	PSE() : pause of about 1 second
+DELAY(s) : délai d'impression	DELAY(s) : print delay
+SIZE(n) : nombre de registres numérotés	SIZE(n) : number of numbered registers
+ON() : calculatrice toujours allumée	ON() : calculator stays on
+OFF() : éteint la calculatrice	OFF() : turns the calculator off
+STOP() : arrête le programme (R/S pour continuer)	STOP() : stops the program (R/S to continue)
+BEEP() : bip	BEEP() : beep
+TONE(n) : note n (0 à 9)	TONE(n) : tone n (0 to 9)
+SF(n) : lève le drapeau n	SF(n) : sets flag n
+CF(n) : baisse le drapeau n	CF(n) : clears flag n
+CLA() : vide ALPHA	CLA() : clears ALPHA
+CLST() : vide la pile	CLST() : clears the stack
+CLX() : X = 0	CLX() : X = 0
+CLRG() : efface les registres numérotés	CLRG() : clears the numbered registers
+AON() : active le clavier ALPHA	AON() : turns the ALPHA keyboard on
+AOFF() : désactive le clavier ALPHA	AOFF() : turns the ALPHA keyboard off
+ASHF() : décale ALPHA de 6 caractères vers la gauche	ASHF() : shifts ALPHA left by 6 characters
+AROT(n) : rotation de ALPHA de n caractères	AROT(n) : rotates ALPHA by n characters
+AIP(x) : ajoute la partie entière de x à ALPHA	AIP(x) : appends the integer part of x to ALPHA
+XTOA(code) : ajoute le caractère de code donné à ALPHA	XTOA(code) : appends the character with the given code to ALPHA
+ALENG() : longueur de ALPHA	ALENG() : length of ALPHA
+ATOX() : retire le 1er caractère de ALPHA et renvoie son code	ATOX() : removes the first character of ALPHA and returns its code
+POSA(code) : position du caractère dans ALPHA (-1 si absent)	POSA(code) : position of the character in ALPHA (-1 if absent)
+AVIEW() ou AVIEW("texte", x...) : affiche ALPHA	AVIEW() or AVIEW("text", x...) : displays ALPHA
+x = PROMPT("texte") : affiche le texte, attend une valeur (R/S)	x = PROMPT("text") : displays the text, waits for a value (R/S)
+CLMENU() : efface les touches du menu programmable	CLMENU() : clears the programmable menu keys
+MENU() : affiche le menu programmable	MENU() : displays the programmable menu
+EXITALL() : quitte tous les menus	EXITALL() : exits all menus
+CLKEYS() : efface les affectations du menu CUSTOM	CLKEYS() : clears the CUSTOM menu assignments
+KEYASN() : menu CUSTOM avec les affectations	KEYASN() : CUSTOM menu with the assignments
+LCLBL() : touches de labels locaux	LCLBL() : local label keys
+GETKEY() : attend une touche et renvoie son code	GETKEY() : waits for a key and returns its code
+RAN() : nombre aléatoire dans [0, 1[	RAN() : random number in [0, 1)
+SEED(x) : initialise le générateur aléatoire	SEED(x) : seeds the random generator
+PI() : 3,14159...	PI() : 3.14159...
+PIXEL(ligne, colonne) : allume un point	PIXEL(row, col) : turns a pixel on
+AGRAPH(ligne, colonne) : dessine ALPHA comme motif de points	AGRAPH(row, col) : draws ALPHA as a dot pattern
+PRA() : imprime ALPHA	PRA() : prints ALPHA
+PRX(x) : imprime x	PRX(x) : prints x
+PRSTK() : imprime la pile	PRSTK() : prints the stack
+PRZ() : imprime les registres de statistiques (PRΣ)	PRZ() : prints the statistics registers (PRΣ)
+PRStat() : imprime les registres de statistiques (PRΣ)	PRStat() : prints the statistics registers (PRΣ)
+PRLCD() : imprime l'écran	PRLCD() : prints the screen
+PRUSR() : imprime les variables et programmes	PRUSR() : prints the variables and programs
+ADV() : saut de papier	ADV() : paper advance
+PRON() : impression activée	PRON() : printing on
+PROFF() : impression désactivée	PROFF() : printing off
+MAN() : impression manuelle	MAN() : manual printing
+NORM() : impression normale	NORM() : normal printing
+TRACE() : impression trace	TRACE() : trace printing
+VIEW(x) : affiche la variable x	VIEW(x) : displays variable x
+INPUT(x) : demande la valeur de x	INPUT(x) : asks for the value of x
+ARCL(x) : ajoute la valeur de x à ALPHA	ARCL(x) : appends the value of x to ALPHA
+ASTO(x) : range les 6 premiers caractères de ALPHA dans x	ASTO(x) : stores the first 6 characters of ALPHA in x
+CLV(x) : supprime la variable x	CLV(x) : deletes variable x
+PRV(x) : imprime la variable x	PRV(x) : prints variable x
+EDITN(m) : éditeur de la matrice m	EDITN(m) : editor of matrix m
+SOLVE(x) : résout pour x (après PGMSLV)	SOLVE(x) : solves for x (after PGMSLV)
+INTEG(x) : intègre selon x (après PGMINT)	INTEG(x) : integrates over x (after PGMINT)
+PGMSLV("f") : choisit la fonction à résoudre (SOLVE)	PGMSLV("f") : selects the function to solve (SOLVE)
+PGMINT("f") : choisit la fonction à intégrer (INTEG)	PGMINT("f") : selects the function to integrate (INTEG)
+CLP("f") : supprime le programme f	CLP("f") : deletes program f
+KEYG(touche, "f") : touche 1-9 du menu → GTO f	KEYG(key, "f") : menu key 1-9 → GTO f
+KEYX(touche, "f") : touche 1-9 du menu → XEQ f	KEYX(key, "f") : menu key 1-9 → XEQ f
+ASSIGN("f", touche) : affecte f à une touche du menu CUSTOM (1-18)	ASSIGN("f", key) : assigns f to a CUSTOM menu key (1-18)
+alpha("texte", x...) : construit ALPHA sans l'afficher	alpha("text", x...) : builds ALPHA without displaying it
+if {0}(x): ... test {1}	if {0}(x): ... test {1}
+if {0}(n): ... test {1} sur le drapeau n	if {0}(n): ... test {1} on flag n
+Trinôme du second degré	Quadratic equation
+PGCD (Euclide)	GCD (Euclid)
+Factorielle et somme	Factorial and sum
+Racine par Newton	Newton's root
+Nombres premiers	Prime numbers
+Triangle (trigonométrie)	Triangle (trigonometry)
+Menu DM42 (varmenu + menu)	DM42 menu (varmenu + menu)
+Drapeaux et commandes HP42S	Flags and HP42S commands
+Matrices (système linéaire)	Matrices (linear system)
+Nombres complexes (circuit RLC)	Complex numbers (RLC circuit)
+Fonctions HP42S (trigo, statistiques)	HP42S functions (trig, statistics)
+Les chaînes """ … """ ne servent que de commentaires : placez-les en début de ligne	""" … """ strings are only comments: put them at the start of a line
+Commentaire {0} non terminé	Unterminated {0} comment
+Indentation incohérente avec les lignes précédentes	Indentation inconsistent with the previous lines
+Nom « {0} » invalide : un nom de variable ne peut pas commencer par un chiffre (écrivez par exemple « {1} » ou « {2} »)	Invalid name "{0}": a variable name cannot start with a digit (write for example "{1}" or "{2}")
+Les f-strings ne sont pas prises en charge : utilisez print("texte", x)	f-strings are not supported: use print("text", x)
+Chaîne de caractères non terminée	Unterminated string
+Caractère inattendu « {0} »	Unexpected character "{0}"
+Parenthèse non fermée en fin de fichier	Unclosed parenthesis at end of file
+Indentation inattendue	Unexpected indentation
+« {0} » sans « if » correspondant	"{0}" without a matching "if"
+« {0} » n'est pas pris en charge	"{0}" is not supported
+return renvoie au plus 4 valeurs (pile X, Y, Z, T)	return gives at most 4 values (stack X, Y, Z, T)
+Le message d'assert doit être une chaîne de caractères	The assert message must be a string
+Modules disponibles : math, cmath (complexes) et numpy (matrices)	Available modules: math, cmath (complex) and numpy (matrices)
+Les affectations en chaîne (a = b = 0) ne sont pas prises en charge	Chained assignments (a = b = 0) are not supported
+Un élément de matrice s'affecte seul : m[i, j] = valeur	A matrix element is assigned alone: m[i, j] = value
+Seules des variables simples peuvent recevoir une valeur	Only simple variables can receive a value
+{0} variable(s) mais {1} valeur(s)	{0} variable(s) but {1} value(s)
+Au plus 4 affectations simultanées (la pile a 4 niveaux)	At most 4 simultaneous assignments (the stack has 4 levels)
+Affectation combinée sur une seule variable uniquement	Augmented assignment on a single variable only
+Liste de valeurs inattendue	Unexpected list of values
+Une fonction prend au plus 4 paramètres (pile X, Y, Z, T)	A function takes at most 4 parameters (stack X, Y, Z, T)
+Paramètre en double	Duplicate parameter
+Au plus 4 variables (la pile a 4 niveaux)	At most 4 variables (the stack has 4 levels)
+for {0} in … : donnez d'abord un nom à la liste (m = [(…), (…)]) puis for {1} in m:	for {0} in …: first name the list (m = [(…), (…)]) then for {1} in m:
+range() accepte au plus 3 arguments	range() accepts at most 3 arguments
+Le pas de range() doit être une constante non nulle	The step of range() must be a non-zero constant
+lambda n'est pas pris en charge	lambda is not supported
+L'expression conditionnelle « a if c else b » n'est pas prise en charge	The conditional expression "a if c else b" is not supported
+« in » s'emploie avec une liste de valeurs : x in (1, 5, 7)	"in" is used with a list of values: x in (1, 5, 7)
+L'opérateur « {0} » n'est pas pris en charge	Operator "{0}" is not supported
+Deux indices au plus : m[ligne, colonne]	Two indices at most: m[row, col]
+Le pas dans les tranches (a:b:pas) n'est pas pris en charge	A step in slices (a:b:step) is not supported
+None n'est pas pris en charge	None is not supported
+« , » ou « ] » attendu dans la liste	"," or "]" expected in the list
+Liste vide : créez une matrice avec zeros(lignes, colonnes)	Empty list: create a matrix with zeros(rows, cols)
+Les dictionnaires ne sont pas pris en charge	Dictionaries are not supported
+{0}.{1} n'est pas disponible	{0}.{1} is not available
+Les arguments nommés (sep=, end=...) ne sont pas pris en charge	Named arguments (sep=, end=...) are not supported
+Expression attendue	Expression expected
+« : » attendu	":" expected
+Bloc indenté attendu	Indented block expected
+Fin d'instruction attendue	End of statement expected
+Nom de variable attendu	Variable name expected
+Nom de fonction attendu	Function name expected
+« ( » attendu	"(" expected
+Nom de paramètre attendu	Parameter name expected
+« ) » attendu (les valeurs par défaut ne sont pas prises en charge)	")" expected (default values are not supported)
+Variable de boucle attendue	Loop variable expected
+« in » attendu	"in" expected
+« ) » attendu	")" expected
+« ] » attendu	"]" expected
+Nom attendu après « . »	Name expected after "."
+Nom attendu après « linalg. »	Name expected after "linalg."
+ (fin de ligne trouvée)	 (end of line found)
+ (fin du fichier trouvée)	 (end of file found)
+ (indentation trouvée)	 (indentation found)
+ (fin de bloc trouvée)	 (end of block found)
+ (« {0} » trouvé)	 ("{0}" found)
+Ligne {0} : expression trop profonde pour la pile à 4 niveaux, découpée automatiquement avec des variables S1, S2...	Line {0}: expression too deep for the 4-level stack, split automatically with variables S1, S2...
+Les indices négatifs ne sont pas pris en charge	Negative indices are not supported
+Un indice doit être entier	An index must be an integer
+append() prend une seule valeur : liste.append(x)	append() takes a single value: list.append(x)
+append() s'applique à une variable liste : b.append(x)	append() applies to a list variable: b.append(x)
+append() ajoute un nombre ou un texte, pas une liste	append() adds a number or a text, not a list
+dmy() renvoie 3 valeurs (jour, mois, année), {0} variable(s) à remplir	dmy() returns 3 values (day, month, year), {0} variable(s) to fill
+Seul pop() sans argument (dernier élément) est pris en charge	Only pop() with no argument (last element) is supported
+pop() s'applique à une variable liste : b.pop()	pop() applies to a list variable: b.pop()
+Attribut « .{0} » non pris en charge (disponibles : .real, .imag, .T)	Attribute ".{0}" is not supported (available: .real, .imag, .T)
+Liste ou tuple inattendu ici	Unexpected list or tuple here
+Une tranche a:b ne s'utilise qu'entre crochets	A slice a:b is only used inside brackets
+Indice non préparé (erreur interne)	Index not prepared (internal error)
+Expression non prise en charge	Unsupported expression
+{0}() n'a pas d'équivalent direct sur HP42 : créez la matrice avec zeros(l, c) puis remplissez-la dans une boucle	{0}() has no direct HP42 equivalent: create the matrix with zeros(l, c) then fill it in a loop
+{0}() attend un nom de {1} : {2}(x) ou {3}("x")	{0}() expects a {1} name: {2}(x) or {3}("x")
+{0}() : {1} doit être un entier constant de {2} à {3}	{0}(): {1} must be a constant integer from {2} to {3}
+Trois dimensions ou plus : la HP42 ne gère que des matrices à 2 dimensions	Three or more dimensions: the HP42 only handles 2-dimensional matrices
+Toutes les lignes de la matrice doivent avoir le même nombre d'éléments	All matrix rows must have the same number of elements
+Mélange de nombres et de listes : écrivez [[1, 2], [3, 4]] ou [1, 2, 3]	Mix of numbers and lists: write [[1, 2], [3, 4]] or [1, 2, 3]
+« {0} » est une liste : une matrice HP42 ne peut pas en contenir une autre. Rangez toutes les valeurs dans un seul tableau à 2 dimensions, une ligne par cas (complétée par des 0 si elle est plus courte) : table = [[…], […]], puis table[i][j]	"{0}" is a list: an HP42 matrix cannot contain another one. Put all the values in a single 2-dimensional table, one row per case (padded with 0 if shorter): table = [[…], […]], then table[i][j]
+Ligne {0} : « {1} » est un paramètre. Sur HP42 la fonction modifie une copie : renvoyez la matrice (return {2}).	Line {0}: "{1}" is a parameter. On the HP42 the function changes a copy: return the matrix (return {2}).
+La fonction « {0} » est définie deux fois	Function "{0}" is defined twice
+Le programme est vide	The program is empty
+Les déclarations placées avant main() sont rangées sous LBL "{0}", appelé au début de main	The declarations before main() are placed under LBL "{0}", called at the start of main
+Le nom du programme « {0} » est déjà celui d'une fonction : le programme principal s'appelle « {1} »	The program name "{0}" is already a function name: the main program is called "{1}"
+« {0} » est à la fois paramètre et global	"{0}" is both a parameter and global
+La fonction « {0} » renvoie un nombre de valeurs différent selon les return	Function "{0}" returns a different number of values depending on the return
+Variable « {0} » lue mais jamais affectée : erreur « Nonexistent » sur la calculatrice	Variable "{0}" is read but never assigned: "Nonexistent" error on the calculator
+Variable « {0} » lue mais jamais affectée : erreur « Nonexistent » sur la calculatrice (vouliez-vous dire « {1} » ?)	Variable "{0}" is read but never assigned: "Nonexistent" error on the calculator (did you mean "{1}"?)
+« {0} » est une fonction Python : la variable « {1} » la masque (en Python, {2}(…) échouera ensuite). Renommez-la, par exemple « {3} »	"{0}" is a Python function: variable "{1}" hides it (in Python, {2}(…) will then fail). Rename it, for example "{3}"
+Appel récursif ({0}) : impossible sur HP42, les variables sont globales. Réécrivez avec une boucle.	Recursive call ({0}): impossible on the HP42, variables are global. Rewrite it with a loop.
+Fonction {0} : variable(s) locale(s) renommée(s) pour ne pas écraser les autres ({1})	Function {0}: local variable(s) renamed so as not to overwrite the others ({1})
+Fonction imbriquée « {0} » : définissez toutes les fonctions au premier niveau	Nested function "{0}": define all functions at the top level
+Variable « {0} » tronquée en « {1} » (7 caractères max sur HP42)	Variable "{0}" truncated to "{1}" (7 characters max on the HP42)
+Les variables « {0} » et « {1} » donnent le même nom HP42 « {2} ». Renommez l'une d'elles.	Variables "{0}" and "{1}" give the same HP42 name "{2}". Rename one of them.
+Label « {0} » tronqué en « {1} » (7 caractères max)	Label "{0}" truncated to "{1}" (7 characters max)
+Les fonctions « {0} » et « {1} » donnent le même label HP42 « {2} »	Functions "{0}" and "{1}" give the same HP42 label "{2}"
+Texte « {0} » trop long : une variable ou un élément de matrice HP42 contient 6 caractères au plus. Pour afficher un texte et une valeur : print("texte", x) ou print("texte" + str(x))	Text "{0}" too long: an HP42 variable or matrix element holds 6 characters at most. To display a text and a value: print("text", x) or print("text" + str(x))
+Une comparaison ne peut servir que comme condition de if ou while	A comparison can only be used as an if or while condition
+La fonction « {0} » ne renvoie pas de valeur (pas de return avec valeur)	Function "{0}" returns no value (no return with a value)
+« {0} » renvoie {1} valeurs : utilisez {2} = {3}(...)	"{0}" returns {1} values: use {2} = {3}(...)
+{0}() est un test de drapeau : utilisez-le dans une condition (if {1}(21): ...)	{0}() is a flag test: use it in a condition (if {1}(21): ...)
+{0}() est un test : utilisez-le dans une condition (if {1}(x): ...)	{0}() is a test: use it in a condition (if {1}(x): ...)
+{0}() est un test : utilisez-le dans une condition (if {1}(n): ...)	{0}() is a test: use it in a condition (if {1}(n): ...)
+{0}() est une instruction, elle ne renvoie pas de valeur	{0}() is a statement, it returns no value
+menu() s'utilise seul : choix = menu("A", "B", ...)	menu() is used alone: choice = menu("A", "B", ...)
+varmenu() est une instruction : varmenu(a, b, c)	varmenu() is a statement: varmenu(a, b, c)
+prompt() s'utilise seul : x = prompt("TEXTE") ou prompt("TEXTE")	prompt() is used alone: x = prompt("TEXT") or prompt("TEXT")
+input() s'utilise seul : x = input(...) ou x = float(input(...))	input() is used alone: x = input(...) or x = float(input(...))
+print() ne renvoie pas de valeur	print() returns no value
+dmy() renvoie 3 valeurs : j, m, a = dmy(date)	dmy() returns 3 values: d, m, y = dmy(date)
+{0}() n'est pas encore accepté à cet endroit : calculez-le d'abord dans une variable (n = {1}(x))	{0}() is not accepted here yet: first compute it in a variable (n = {1}(x))
+{0}() ne renvoie pas de valeur : utilisez-le comme instruction	{0}() returns no value: use it as a statement
+{0}() renvoie {1} valeurs : écrivez a, b = {2}(...)	{0}() returns {1} values: write a, b = {2}(...)
+liste.{0}() s'utilise seul sur sa ligne (ou x = liste.pop())	list.{0}() is used alone on its line (or x = list.pop())
+Fonction « {0} » inconnue. Définissez-la avec def, ou utilisez une fonction de math disponible.	Unknown function "{0}". Define it with def, or use an available math function.
+{0}() attend {1} argument(s), {2} donné(s)	{0}() expects {1} argument(s), {2} given
+Expression trop complexe pour la pile à 4 niveaux X Y Z T (il en faudrait {0}). Calculez une partie dans une variable intermédiaire.	Expression too complex for the 4-level stack X Y Z T ({0} needed). Compute part of it in an intermediate variable.
+round() demande le nombre de décimales : round(x, 2), ou round(x, 0) pour un entier	round() needs the number of decimals: round(x, 2), or round(x, 0) for an integer
+round(x, n) : n doit être un nombre entier constant de 0 à 11	round(x, n): n must be a constant integer from 0 to 11
+Tuple (a, b) non accepté ici. Il s'emploie dans : a, b = …, return a, b, for x, n in m, une liste de couples [(…), (…)], x in (…), print(…), zeros((l, c))	Tuple (a, b) not accepted here. It is used in: a, b = …, return a, b, for x, n in m, a list of pairs [(…), (…)], x in (…), print(…), zeros((l, c))
+a * b entre deux matrices : utilisez a @ b (produit matriciel). Le produit élément par élément n'existe pas sur la HP-42S.	a * b between two matrices: use a @ b (matrix product). The element-wise product does not exist on the HP-42S.
+Division par une matrice : utilisez solve(A, b) ou inv(A) @ b	Division by a matrix: use solve(A, b) or inv(A) @ b
+Ligne {0} : « // » devient ÷ IP (troncature vers zéro) : résultat différent de Python pour les nombres négatifs	Line {0}: "//" becomes ÷ IP (truncation toward zero): result differs from Python for negative numbers
+Opérateur « {0} » non pris en charge	Operator "{0}" is not supported
+Comparaison trop complexe pour la pile à 4 niveaux. Utilisez une variable intermédiaire.	Comparison too complex for the 4-level stack. Use an intermediate variable.
+menu() et prompt() s'utilisent seuls : x = menu(...)	menu() and prompt() are used alone: x = menu(...)
+« {0} » renvoie {1} valeur(s), {2} variable(s) à remplir	"{0}" returns {1} value(s), {2} variable(s) to fill
+{0}() renvoie {1} valeurs, {2} variable(s) à remplir	{0}() returns {1} values, {2} variable(s) to fill
+input() doit être affecté seul : x = input(...)	input() must be assigned alone: x = input(...)
+Récupérez le choix du menu : choix = menu("A", "B", ...)	Get the menu choice: choice = menu("A", "B", ...)
+Ligne {0} : résultat de {1}() inutilisé, appel ignoré	Line {0}: result of {1}() unused, call ignored
+Ligne {0} : expression sans effet, ignorée	Line {0}: expression has no effect, ignored
+return en dehors d'une fonction	return outside a function
+break en dehors d'une boucle	break outside a loop
+continue en dehors d'une boucle	continue outside a loop
+Fonction imbriquée « {0} » non prise en charge	Nested function "{0}" is not supported
+{0}() attend 1 argument (nombre entier de {1} à {2})	{0}() expects 1 argument (integer from {1} to {2})
+{0}() attend un nombre entier constant de {1} à {2}	{0}() expects a constant integer from {1} to {2}
+{0}() attend {1} arguments : {2}(valeur, registre)	{0}() expects {1} arguments: {2}(value, register)
+menu() accepte de 1 à 6 choix (une rangée de touches)	menu() accepts 1 to 6 choices (one row of keys)
+Les choix de menu() doivent être des chaînes constantes	The choices of menu() must be constant strings
+Un choix de menu() ne peut pas être vide	A menu() choice cannot be empty
+Choix « {0} » trop long (15 caractères max)	Choice "{0}" too long (15 characters max)
+Ligne {0} : libellé de menu de plus de 6 caractères, il sera tronqué à l'écran	Line {0}: menu label longer than 6 characters, it will be cut off on screen
+varmenu() attend au moins une variable : varmenu(a, b)	varmenu() expects at least one variable: varmenu(a, b)
+varmenu() attend des noms de variables : varmenu(a, b, c)	varmenu() expects variable names: varmenu(a, b, c)
+Un seul varmenu() différent par fonction (« {0} » en a déjà un)	Only one different varmenu() per function ("{0}" already has one)
+Ligne {0} : texte affiché probablement plus long que les 44 caractères du registre ALPHA	Line {0}: displayed text probably longer than the 44 characters of the ALPHA register
+Le programme a besoin de {0} labels locaux, la HP42 n'en offre que 99 (00 à 99). Découpez-le en plusieurs fonctions.	The program needs {0} local labels, the HP42 only offers 99 (00 to 99). Split it into several functions.
+Invalid Type : une matrice n'est pas un nombre	Invalid Type: a matrix is not a number
+Invalid Type : « {0} » est un texte, pas un nombre	Invalid Type: "{0}" is a text, not a number
+Label « {0} » introuvable	Label "{0}" not found
+Nonexistent : la variable « {0} » n'existe pas encore	Nonexistent: variable "{0}" does not exist yet
+Nonexistent : aucune matrice indexée (INDEX)	Nonexistent: no indexed matrix (INDEX)
+Invalid Type : « {0} » n'est pas une matrice	Invalid Type: "{0}" is not a matrix
+Divide by 0 : 1/X de zéro	Divide by 0: 1/X of zero
+Invalid Type : {0} sur une matrice n'est pas simulé	Invalid Type: {0} on a matrix is not simulated
+Invalid Data : LN de 0	Invalid Data: LN of 0
+Invalid Data : LOG de 0	Invalid Data: LOG of 0
+Invalid Type : {0} sur un complexe n'est pas simulé	Invalid Type: {0} on a complex is not simulated
+Invalid Data : ATANH hors de ]-1, 1[	Invalid Data: ATANH outside (-1, 1)
+Invalid Data : LN d'un nombre négatif	Invalid Data: LN of a negative number
+Invalid Data : LN1+X	Invalid Data: LN1+X
+Invalid Data : LOG d'un nombre négatif	Invalid Data: LOG of a negative number
+Fonction inconnue {0}	Unknown function {0}
+Arrêt après {0} pas : boucle infinie ?	Stopped after {0} steps: infinite loop?
+Le programme attend un choix dans le menu {0} : ajoutez le numéro de la touche (1 à 6, 0 = EXIT) dans INPUT	The program waits for a choice in menu {0}: add the key number (1 to 6, 0 = EXIT) in INPUT
+Touche {0} sans action dans le menu {1}	Key {0} has no action in menu {1}
+PROMPT « {0} » attend une valeur : ajoutez-la dans INPUT	PROMPT "{0}" waits for a value: add it in INPUT
+Dimension Error : DIM {0} impossible (une matrice a au moins 1 élément)	Dimension Error: DIM {0} impossible (a matrix has at least 1 element)
+Stat Math Error : aucun point (Σ+)	Stat Math Error: no point (Σ+)
+Stat Math Error : il faut au moins 2 points	Stat Math Error: at least 2 points are needed
+Stat Math Error : somme des poids nulle	Stat Math Error: sum of weights is zero
+Stat Math Error : pas assez de points distincts	Stat Math Error: not enough distinct points
+Divide by 0 : division par zéro	Divide by 0: division by zero
+Invalid Type : {0} attend une matrice	Invalid Type: {0} expects a matrix
+Invalid Data : vecteur nul	Invalid Data: null vector
+GETKEY attend une touche : ajoutez son code dans INPUT	GETKEY waits for a key: add its code in INPUT
+Dimension Error : COMPLEX attend deux matrices réelles de même taille (Y = réel, X = imaginaire)	Dimension Error: COMPLEX expects two real matrices of the same size (Y = real, X = imaginary)
+Invalid Data : dimensions de matrice ≤ 0	Invalid Data: matrix dimensions ≤ 0
+Dimension Error : élément ({0}, {1}) hors de la matrice {2} (indice Python {3}, {4})	Dimension Error: element ({0}, {1}) outside the {2} matrix (Python index {3}, {4})
+Invalid Type : on ne range pas une matrice dans un élément	Invalid Type: a matrix cannot be stored in an element
+Dimension Error : sous-matrice {0} en ({1}, {2}) hors de la matrice {3}	Dimension Error: submatrix {0} at ({1}, {2}) outside the {3} matrix
+Invalid Type : PUTM attend une matrice dans X	Invalid Type: PUTM expects a matrix in X
+Dimension Error : la matrice {0} ne tient pas en ({1}, {2}) dans {3}	Dimension Error: the {0} matrix does not fit at ({1}, {2}) in {3}
+Dimension Error : DOT attend deux vecteurs de même taille	Dimension Error: DOT expects two vectors of the same size
+Dimension Error : CROSS attend deux vecteurs à 3 éléments	Dimension Error: CROSS expects two 3-element vectors
+Out of Range : dépassement de capacité	Out of Range: overflow
+Opération inconnue {0}	Unknown operation {0}
+Invalid Type : {0} sur des complexes	Invalid Type: {0} on complex numbers
+Invalid Data : 0 à une puissance négative	Invalid Data: 0 to a negative power
+Invalid Data : puissance non entière d'un négatif (import cmath pour un résultat complexe)	Invalid Data: non-integer power of a negative (import cmath for a complex result)
+Dimension Error : produit {0}	Dimension Error: product {0}
+Invalid Type : {0} entre deux matrices	Invalid Type: {0} between two matrices
+Invalid Type : {0} avec une matrice	Invalid Type: {0} with a matrix
+Dimension Error : seule une matrice carrée est inversible	Dimension Error: only a square matrix can be inverted
+Singular Matrix : matrice non inversible	Singular Matrix: matrix cannot be inverted
+Dimension Error : DET demande une matrice carrée	Dimension Error: DET needs a square matrix
+Invalid Type : N! demande un entier positif	Invalid Type: N! needs a positive integer
+Invalid Data : GAMMA d'un entier ≤ 0	Invalid Data: GAMMA of an integer ≤ 0
+Test inconnu {0}	Unknown test {0}
+(STOP — R/S pour continuer)	(STOP — R/S to continue)
+(écran effacé)	(screen cleared)
+Avertissement : {0}	Warning: {0}
+Erreur d'encodage : {0}	Encoding error: {0}
+{0} pas, {1} labels locaux, pile max {2}, variables : {3}	{0} steps, {1} local labels, max stack {2}, variables: {3}
+Erreur ligne {0} : {1}	Error line {0}: {1}
+Erreur : {0}	Error: {0}

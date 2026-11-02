@@ -137,6 +137,14 @@ public static class Hp42
         ["PWRF"] = S("PWRF", "PWRF() : modèle puissance"),
         ["BEST"] = S("BEST", "BEST() : meilleur modèle"),
 
+        // ---- Date et heure (horloge de la calculatrice)
+        ["DATE"] = F("DATE", 0, "DATE() : date du jour, au format réglé (DMY() : JJ.MMAAAA)"),
+        ["TIME"] = F("TIME", 0, "TIME() : heure H.MMSS (toHR(TIME()) : heures décimales)"),
+        ["DDAYS"] = F("DDAYS", 2, "DDAYS(d1, d2) : nombre de jours de d1 à d2, au format réglé"),
+        ["DMY"] = S("DMY", "DMY() : format de date JJ.MMAAAA"),
+        ["MDY"] = S("MDY", "MDY() : format de date MM.JJAAAA"),
+        ["YMD"] = S("YMD", "YMD() : format de date AAAA.MMJJ"),
+
         // ---- Affichage et modes
         ["FIX"] = I("FIX", Imm.Digits, "FIX(n) : affichage avec n décimales (0 à 11)"),
         ["SCI"] = I("SCI", Imm.Digits, "SCI(n) : notation scientifique"),
@@ -297,7 +305,10 @@ public static class Hp42
     };
 
     /// <summary>Toutes les entrées d'aide (commandes, tests, variables, fonctions), pour l'aide et l'auto-complétion.</summary>
-    public static IEnumerable<(string Name, string Help)> AllHelp()
+    public static IEnumerable<(string Name, string Help)> AllHelp() =>
+        HelpEntries().Select(h => (h.Name, Tr.T(h.Help)));
+
+    static IEnumerable<(string Name, string Help)> HelpEntries()
     {
         foreach (var kv in Commands) yield return (kv.Key, kv.Value.Help);
         foreach (var kv in VarCommands) yield return (kv.Key, kv.Value.Help);

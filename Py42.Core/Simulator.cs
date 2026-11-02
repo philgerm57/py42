@@ -76,7 +76,7 @@ public sealed class Val
     public static Val Num(Complex c, bool keepCx) => keepCx || c.Imaginary != 0 ? Cx(c) : R(c.Real);
 }
 
-sealed class SimError : Exception { public SimError(string m) : base(m) { } }
+sealed class SimError : Exception { public SimError(string m) : base(Tr.T(m)) { } }
 
 public sealed class SimResult
 {
@@ -105,6 +105,45 @@ public static class Simulator
         if (Math.Abs(v) < 1e-14 && v != 0) v = Math.Round(v, 15);
         string s = v.ToString("G12", CultureInfo.InvariantCulture);
         return s.Replace("E+", "ᴇ").Replace("E-", "ᴇ-");
+    }
+
+    /// <summary>Nombre selon le mode d'affichage de la calculatrice : FIX, SCI ou ENG, n décimales.</summary>
+    static string FmtMode(double v, string mode, int n)
+    {
+        if (double.IsNaN(v) || double.IsInfinity(v)) return Fmt(v);
+        var inv = CultureInfo.InvariantCulture;
+        if (mode == "FIX")
+        {
+            double a = Math.Abs(v);
+            // comme sur la calculatrice : passe en SCI si le nombre ne tient pas ou s'arrondirait à zéro
+            if (a < 1e12 && (v == 0 || Math.Round(a, n, MidpointRounding.AwayFromZero) != 0))
+            {
+                int intDigits = a >= 1 ? (int)Math.Floor(Math.Log10(a)) + 1 : 1;
+                int dec = Math.Min(n, 12 - intDigits);   // 12 chiffres au plus
+                string t = ((decimal)v).ToString("F" + dec, inv);
+                return dec == 0 ? t + "." : t;
+            }
+            mode = "SCI";
+        }
+        if (v == 0) return (0.0).ToString("F" + n, inv) + "ᴇ0";
+        string e = v.ToString("E" + n, inv);
+        int ex = int.Parse(e[(e.IndexOf('E') + 1)..], inv);
+        if (mode == "SCI") return $"{e[..e.IndexOf('E')]}ᴇ{ex}";
+        int ex3 = (int)Math.Floor(ex / 3.0) * 3;   // ENG : exposant multiple de 3
+        double m = double.Parse(e, inv) / Math.Pow(10, ex3);
+        return $"{m.ToString("F" + Math.Max(0, n - (ex - ex3)), inv)}ᴇ{ex3}";
+    }
+
+    /// <summary>Lit une date selon le format réglé : D (JJ.MMAAAA), M (MM.JJAAAA) ou Y (AAAA.MMJJ).</summary>
+    static DateTime ParseDate(double v, char mode)
+    {
+        decimal d = Math.Round((decimal)Math.Abs(v), 6);
+        int ip = (int)d;
+        decimal fp = d - ip;
+        if (mode == 'Y') { int mm = (int)(fp * 100); return new DateTime(ip, mm, (int)Math.Round((fp * 100 - mm) * 100)); }
+        int b = (int)(fp * 100);
+        int yy = (int)Math.Round((fp * 100 - b) * 10000);
+        return mode == 'D' ? new DateTime(yy, b, ip) : new DateTime(yy, ip, b);
     }
 
     static string FmtC(Complex c)
@@ -144,7 +183,7 @@ public static class Simulator
     }
 
     public static SimResult Run(List<Instr> code, string entry, IEnumerable<double>? stack = null,
-                                IEnumerable<double>? inputs = null, int maxSteps = 500_000)
+                                IEnumerable<double>? inputs = null, int maxSteps = 100_000_000)
     {
         var r = new SimResult();
         var labels = new Dictionary<string, int>();
@@ -164,6 +203,15 @@ public static class Simulator
         bool rad = false, polar = false, cpxres = false;
         var flags = new bool[100];
         int fix = 4;
+        char dateMode = 'D';   // format de date du simulateur, JJ.MMAAAA tant que le programme ne le change pas
+        string? dispMode = null;   // FIX, SCI, ENG exécuté par le programme ; sinon le mode de la calculatrice n'est pas connu
+        string Num(double v) => dispMode == null ? Fmt(v) : FmtMode(v, dispMode, fix);
+        string Disp(Val v) => v.K switch
+        {
+            Val.Kind.Real => Num(v.Re),
+            Val.Kind.Cx => v.C.Imaginary < 0 ? $"{Num(v.C.Real)} -i{Num(-v.C.Imaginary)}" : $"{Num(v.C.Real)} i{Num(v.C.Imaginary)}",
+            _ => Fmt(v)
+        };
         var rng = new Random(42);
         var keys = new Dictionary<int, int>();        // touche -> label local (KEY n GTO nn)
         var keyText = new Dictionary<int, string>();
@@ -183,7 +231,7 @@ public static class Simulator
         }
         var noted = new HashSet<string>();
         void Note(string m) { if (noted.Add(m)) r.Display.Add(m); }
-        if (!labels.TryGetValue("\"" + entry, out int pc)) { r.Error = $"Label « {entry} » introuvable"; return r; }
+        if (!labels.TryGetValue("\"" + entry, out int pc)) { r.Error = Tr.T($"Label « {entry} » introuvable"); return r; }
 
         double ToRad(double a) => rad ? a : a * Math.PI / 180;
         double FromRad(double a) => rad ? a : a * 180 / Math.PI;
@@ -322,12 +370,12 @@ public static class Simulator
                             }
                         }
                         break;
-                    case K.ViewVar: r.Display.Add($"{ins.Arg}={Describe(Get(ins.Arg))}"); break;
-                    case K.ViewX: r.Display.Add($"X={Describe(x)}"); break;
+                    case K.ViewVar: r.Display.Add($"{ins.Arg}={(Get(ins.Arg).IsMat ? Describe(Get(ins.Arg)) : Disp(Get(ins.Arg)))}"); break;
+                    case K.ViewX: r.Display.Add($"X={(x.IsMat ? Describe(x) : Disp(x))}"); break;
                     case K.AStr: alpha = ins.Arg; break;
                     case K.AStrAppend: alpha += ins.Arg; break;
-                    case K.ArclVar: alpha += Fmt(Get(ins.Arg)); break;
-                    case K.ArclX: alpha += Fmt(x); break;
+                    case K.ArclVar: alpha += Disp(Get(ins.Arg)); break;
+                    case K.ArclX: alpha += Disp(x); break;
                     case K.Cla: alpha = ""; break;
                     case K.AView: r.Display.Add(alpha.Length > 44 ? alpha[^44..] : alpha); break;
                     case K.Input:
@@ -377,7 +425,7 @@ public static class Simulator
                             }
                             r.Display.Add($"VARMENU  {string.Join("  ", parts)}  (R/S)");
                         }
-                        else r.Display.Add("(STOP — R/S pour continuer)");
+                        else r.Display.Add(Tr.T("(STOP — R/S pour continuer)"));
                         break;
                     case K.KeyGto:
                     {
@@ -400,8 +448,8 @@ public static class Simulator
                         int arg = w.Length > 1 && int.TryParse(w[1], out var a1) ? a1 : 0;
                         switch (w[0])
                         {
-                            case "FIX": case "SCI": case "ENG": fix = arg; break;
-                            case "ALL": fix = 11; break;
+                            case "FIX": case "SCI": case "ENG": fix = arg; dispMode = w[0]; break;
+                            case "ALL": fix = 11; dispMode = null; break;
                             case "RAD": rad = true; break;
                             case "DEG": case "GRAD": rad = false; break;
                             case "RECT": polar = false; break;
@@ -411,11 +459,28 @@ public static class Simulator
                             case "SF": flags[arg] = true; break;
                             case "CF": flags[arg] = false; break;
                             case "BEEP": r.Display.Add("♪ BEEP"); break;
+                            case "DMY": dateMode = 'D'; break;
+                            case "MDY": dateMode = 'M'; break;
+                            case "YMD": dateMode = 'Y'; break;
+                            case "DATE":
+                            {
+                                var nowT = DateTime.Now;
+                                Lift(Val.R(dateMode == 'Y' ? nowT.Year + nowT.Month / 100.0 + nowT.Day / 10000.0
+                                    : (dateMode == 'D' ? nowT.Day + nowT.Month / 100.0 : nowT.Month + nowT.Day / 100.0) + nowT.Year / 1000000.0));
+                                break;
+                            }
+                            case "TIME":
+                            {
+                                var nowT = DateTime.Now;
+                                Lift(Val.R(nowT.Hour + nowT.Minute / 100.0 + nowT.Second / 10000.0));
+                                break;
+                            }
+                            case "DDAYS": Drop2(Val.R((ParseDate(x.Real, dateMode) - ParseDate(y.Real, dateMode)).Days)); break;
                             case "TONE": r.Display.Add($"♪ TONE {arg}"); break;
                             case "CLA": alpha = ""; break;
                             case "CLST": x = y = z = t = Val.Zero; break;
                             case "CLX": x = Val.Zero; break;
-                            case "CLLCD": r.Display.Add("(écran effacé)"); break;
+                            case "CLLCD": r.Display.Add(Tr.T("(écran effacé)")); break;
                             case "PIXEL": break;
                             case "AVIEW": r.Display.Add(alpha); break;
                             case "PROMPT":

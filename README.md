@@ -14,7 +14,14 @@ Convertit un Python simplifié en programme RPN pour la HP-42S, la SwissMicros D
 
 Avec Visual Studio 2022 (charge de travail « Développement .NET Desktop ») : ouvrir `Py42.sln`, choisir `Py42.Studio` comme projet de démarrage, puis F5. Le paquet NuGet AvalonEdit est restauré automatiquement.
 
-En ligne de commande (SDK .NET 8) :
+Avec `build.bat` (SDK .NET 10 ; compile aussi `..\dm42dll` si sa DLL manque) :
+
+```
+build.bat              compile la solution
+build.bat publish      Py42.exe (_publish\Py42) et py42.exe (_publish\cli) en fichier unique
+```
+
+En ligne de commande (SDK .NET 10) :
 
 ```
 dotnet run --project Py42.Studio
@@ -51,13 +58,14 @@ Sur une vraie HP-42S, saisir le listing à la main (pas de liaison).
 - Tuples : `return (a, b)`, `for v in (1, 2, 3)`, `x in (1, 5, 7)` / `x not in (…)` (→ suite de `==` / `!=`), `print("date", (j, m, a))` → `date (12, 5, 2024)`.
 - Liste de couples `m = [(1.0, n1), (1.05, n2), …]` → matrice (une ligne par couple) ; `for x, n in m:` parcourt ses lignes, une variable par colonne.
 - `j, m, a = dmy(d)` découpe une date au format JJ.MMAAAA (D.MY de la DM42) : `12.052024` donne 12, 5, 2024.
+- Horloge : `DATE()`, `TIME()` (H.MMSS, `toHR(TIME())` en heures décimales), `DDAYS(d1, d2)` (jours de d1 à d2). Le résultat suit le format réglé sur la calculatrice : appelez `DMY()` avant `DATE()` si vous l'utilisez avec `dmy()`. Ce réglage reste actif après le programme. `MDY()` et `YMD()` choisissent les autres formats.
 - `x = input("...")`, `x = float(input(...))`, `x = int(input(...))` → `INPUT "X"`.
 - `print("texte", x, ...)` → `"texte"`, `ARCL`, `AVIEW` ; `print(x)` → `VIEW "X"`.
 - Concaténation : `print("P Vap :" + str(v) + " hPa")` ou `print("N=" + floor(n))` → morceaux à la suite, sans espace ; `floor`, `ceil`, `int` sont ajoutés par `AIP` (sans décimales).
 - `x = prompt("PRIX ?")` ou `x = PROMPT("PRIX ?")` → le texte s'affiche (`PROMPT`), on tape la valeur puis R/S. Seul, `PROMPT("PRET")` fait une simple pause. `MENU(...)` et `VARMENU(...)` en majuscules marchent aussi.
 - `import math`, `from math import ...` ; fonctions : `sqrt sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh exp expm1 log log1p log10 abs fabs int trunc floor ceil factorial gamma radians degrees hypot pow max min`, constantes `pi` et `e`.
 - `floor(x)` et `ceil(x)` → `x - (x MOD 1)` et `x + (-x MOD 1)` : le MOD de la HP-42S a le signe du diviseur, donc le résultat est juste aussi pour x négatif ; une constante est calculée dès la conversion.
-- `round(x, n)` (n entier constant, 0 à 11) → `IP(x·10ⁿ + 0,5·SIGN(x)) ÷ 10ⁿ` : au plus proche, les demis s'éloignent de zéro comme `RND` (Python, lui, arrondit `round(2.5)` à 2) ; le mode d'affichage `FIX` n'est pas modifié. `round(x)` sans nombre de décimales est refusé : écrivez `round(x, 0)`.
+- `round(x, n)` (n entier constant, 0 à 11) → `IP(x·10ⁿ + 0,5·SIGN(x)) ÷ 10ⁿ` : au plus proche, les demis s'éloignent de zéro comme `RND` (Python, lui, arrondit `round(2.5)` à 2) ; le résultat s'affiche avec `n` décimales : `FIX n` est émis à l'affectation `y = round(x, n)` et devant le `print` de `y` ou de `round(x, n)`. Ce mode reste actif ensuite ; un `FIX(n)` écrit dans le programme annule ce réglage pour les variables déjà arrondies. `round(x)` sans nombre de décimales est refusé : écrivez `round(x, 0)`.
 
 ## Expressions longues
 
@@ -189,6 +197,10 @@ Le champ INPUT donne les réponses dans l'ordre : `INPUT`, `prompt()`, une valeu
 - La HP-42S ne distingue pas les majuscules : `b` et `B` sont la même variable (Py42 le signale).
 - La HP-42S d'origine a 8 niveaux de retour pour `XEQ` ; la DM42 en a davantage.
 - Le simulateur calcule en double précision ; la DM42 calcule en décimal sur 34 chiffres, de petites différences d'arrondi sont possibles.
+
+## Langue
+
+Les messages et l'aide existent en français et en anglais (`Py42.Core/py42_en.txt`). Le français reste la langue par défaut ; `py42 --en` et DM42 Editor activent l'anglais. Py42 Studio reste en français.
 
 ## Licence
 

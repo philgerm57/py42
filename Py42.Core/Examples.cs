@@ -5,7 +5,10 @@ public static class Examples
 {
     public sealed record Example(string Title, string Source, string Entry, string Stack, string Inputs);
 
-    public static readonly List<Example> All = new()
+    /// <summary>Exemples dans la langue choisie.</summary>
+    public static List<Example> All => Tr.English ? ExamplesEn.All : French;
+
+    static readonly List<Example> French = new()
     {
         new("Trinôme du second degré", """
 # Racines de a·x² + b·x + c

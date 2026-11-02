@@ -4,7 +4,7 @@ namespace Py42.Core;
 public sealed class CompileError : Exception
 {
     public int Line { get; }
-    public CompileError(string message, int line) : base(message) { Line = line; }
+    public CompileError(string message, int line) : base(Tr.T(message)) { Line = line; }
 }
 
 // ---------- Expressions ----------

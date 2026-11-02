@@ -47,6 +47,8 @@ public sealed partial class Compiler
     readonly CompileOptions o;
     readonly List<Instr> code = new();
     readonly List<string> warnings = new();
+    /// <summary>Variables affectées par round(x, n) : nombre de décimales à afficher.</summary>
+    readonly Dictionary<string, int> roundDec = new();
     readonly Dictionary<string, Def> funcs = new();
     readonly HashSet<string> sourceNames = new(StringComparer.OrdinalIgnoreCase);
     readonly HashSet<string> assignedAnywhere = new();
@@ -201,7 +203,7 @@ public sealed partial class Compiler
         return new CompileResult
         {
             Code = code,
-            Warnings = warnings,
+            Warnings = warnings.Select(Tr.T).ToList(),
             Entries = entries,
             Variables = hpVars.OrderBy(v => v, StringComparer.Ordinal).ToList(),
             MaxStack = maxStack,
@@ -608,7 +610,7 @@ public sealed partial class Compiler
             case Call { Func: "round" } rc when !IsUser(rc.Func):
             {
                 // round(x, n) = IP(x·10^n + 0,5·SIGN(x)) / 10^n : au plus proche, les demis s'éloignent de zéro
-                // (comme RND de la HP-42S), sans toucher au mode d'affichage FIX
+                // (comme RND de la HP-42S) ; le FIX n est émis à l'affectation et à l'affichage
                 int l = rc.Line;
                 if (rc.Args.Count != 2)
                     throw new CompileError("round() demande le nombre de décimales : round(x, 2), ou round(x, 0) pour un entier", l);
@@ -925,6 +927,9 @@ public sealed partial class Compiler
     {
         curLine = s.Line;
         spillN = 0;   // les variables S1, S2... servent d'une instruction à l'autre
+        if (s is Assign asg) foreach (var t in asg.Targets) roundDec.Remove(t);
+        // un FIX(n) écrit par l'utilisateur prime sur les décimales de round()
+        if (s is ExprStmt { E: Call { Func: "FIX" or "SCI" or "ENG" or "ALL" } }) roundDec.Clear();
         switch (s)
         {
             case Import: break;
@@ -944,6 +949,7 @@ public sealed partial class Compiler
                 if (v is Call { Func: "pop" } pop && !IsUser("pop")) { GenPop(pop, Var(a.Targets[0])); break; }
                 GenValue(v);
                 Emit(K.Sto, Var(a.Targets[0]));
+                if (RoundDecimals(v) is int nd) { roundDec[a.Targets[0]] = nd; EmitFix(nd); }
                 break;
             }
             case Assign { Values: [Call { Func: "dmy" } dc] } a when !IsUser("dmy"):
@@ -1302,6 +1308,16 @@ public sealed partial class Compiler
     static bool IsIntegerValue(Expr e) => e is Call { Func: "floor" or "ceil" or "int" or "trunc", Args.Count: 1 }
         || (e is Call { Func: "round", Args.Count: 2 } rc && Parser.ConstValue(rc.Args[1]) == 0);
 
+    /// <summary>Décimales d'un round(x, n), déjà validé par Prepare.</summary>
+    int? RoundDecimals(Expr e) =>
+        e is Call { Func: "round", Args.Count: 2 } rc && !IsUser(rc.Func) && Parser.ConstValue(rc.Args[1]) is double d ? (int)d : null;
+
+    void EmitFix(int n) => Emit(K.Cmd, $"FIX {n:00}");
+
+    /// <summary>Décimales à afficher pour un argument de print : round(x, n), ou variable affectée par round().</summary>
+    int? PrintDecimals(Expr e) =>
+        RoundDecimals(e) ?? (e is Name v && roundDec.TryGetValue(v.Id, out int n) ? n : null);
+
     void GenPrint(Call c, bool prompt = false, bool view = true)
     {
         // texte concaténé : chaque argument devient une suite de morceaux ; seuls les arguments sont séparés par une espace
@@ -1325,6 +1341,7 @@ public sealed partial class Compiler
         if (args.Count == 1 && args[0] is not Str && !prompt && view)
         {
             var p = Prepare(args[0], true);
+            if (PrintDecimals(args[0]) is int nd) EmitFix(nd);
             if (p is Name n && !IsConstName(n)) { Emit(K.ViewVar, n.Raw ? n.Id : Var(n.Id)); return; }
             p = Fit(p, 4);
             CheckDepth(p, 0);
@@ -1338,6 +1355,7 @@ public sealed partial class Compiler
         var pending = new StringBuilder();
         bool started = false;
         int total = 0;
+        int? curFix = null;
         void Flush()
         {
             string txt = pending.ToString().Replace('"', '\'');
@@ -1358,6 +1376,8 @@ public sealed partial class Compiler
             if (ps[i] is Str s) { pending.Append(s.Value); total += s.Value.Length; continue; }
             Flush();
             if (!started) { Emit(K.Cla); started = true; }
+            // round(x, 0) direct passe par AIP, sans FIX
+            if (!IsIntegerValue(args[i]) && PrintDecimals(args[i]) is int nd && nd != curFix) { EmitFix(nd); curFix = nd; }
             if (ps[i] is Name n && !IsConstName(n)) Emit(K.ArclVar, n.Raw ? n.Id : Var(n.Id));
             else
             {
