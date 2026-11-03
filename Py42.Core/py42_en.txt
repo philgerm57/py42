@@ -398,3 +398,4 @@ Erreur d'encodage : {0}	Encoding error: {0}
 {0} pas, {1} labels locaux, pile max {2}, variables : {3}	{0} steps, {1} local labels, max stack {2}, variables: {3}
 Erreur ligne {0} : {1}	Error line {0}: {1}
 Erreur : {0}	Error: {0}
+Cible C47 : pas de .raw ni de simulation HP-42S (DM42 Editor encode le .p47 et lance le simulateur C47)	C47 target: no .raw and no HP-42S simulation (DM42 Editor encodes the .p47 and runs the C47 simulator)

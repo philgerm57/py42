@@ -185,6 +185,54 @@ Le champ INPUT donne les réponses dans l'ordre : `INPUT`, `prompt()`, une valeu
 | `f(1, 2)` | `1` `2` `XEQ "F"` |
 | `max(a, b)` | `X<Y?` `X<>Y` `STO ST Y` `R↓` |
 
+## Cible C47 / R47
+
+Avec `CompileOptions.Target = Target.C47` (ou `py42 --c47`), le même Python produit un programme pour la C47 / R47 :
+
+- `if` / `elif` / `else` → `IF` `ELSE` `ENDIF` ; `while` → `DO` test `WHILE` … `ENDDO` ; `for … in range()` → `FORᵀᴼᴾ` … `NEXT`
+  (une boucle avec `break` ou qui modifie sa variable passe par `DO` … `ENDDO`). Plus de `GTO` pour ces constructions.
+  Les structures sont écrites sans numéro : l'encodeur de DM42 Editor les numérote comme `VALID`.
+- `and` / `or` / `not` : la condition est calculée dans un indicateur local (`.00`…), avec le court-circuit de Python.
+- Variables locales des fonctions dans les registres locaux (`LocR`, `.00`, `.01`…) : plus de renommage, et la **récursivité est permise**.
+- Textes : valeurs poussées dans X, sans la limite de 6 caractères. `print` passe par les instructions de compatibilité
+  HP-42S de la C47 (ALPHA = registre K).
+
+Fonctions de la cible C47 (`Py42.Core/C47Functions.cs`, rangées par domaine, reprises dans l'aide C47 de DM42 Editor) :
+
+- `math` et `scipy.special` : `sqrt` → `√x`, `cbrt` → `∛x`, `log(x, b)` → `LOGₓy`, `gamma` → `Γ(x)`, `erf`, `zeta` → `ζ(x)`,
+  `jv` / `yv` (Bessel), `lambertw` → `Wₚ`, `ellipk` / `ellipe` / `ellipkinc` / `ellipeinc`, `gammainc` / `gammaincc`,
+  polynômes de Legendre, Tchebychev, Hermite, Laguerre (`eval_…`), `gcd`, `lcm`, `comb`, `perm`…
+- `sympy` : `nextprime` → `NEXTP`, `fibonacci` → `FIB`, `isprime(n)` dans une condition → `PRIME?`.
+- `statistics.mean / median / stdev / pstdev (v)` : `CLΣ`, chaque élément par `Σ+`, puis `x̄`, médiane, `s`, `σ`.
+- `scipy.constants.c`, `h`, `k`, `N_A`, `G`, `e`, `m_e`… : constantes du catalogue C47 (sans parenthèses).
+- `scipy.stats` (`import scipy.stats as st`, ou `from scipy.stats import norm`) : `norm`, `cauchy`, `logistic`, `expon`,
+  `weibull_min`, `t`, `chi2`, `f`, `binom`, `poisson`, `geom`, `nbinom`, avec `.pdf` / `.pmf`, `.cdf`, `.sf`, `.ppf`.
+  Les paramètres sont rangés dans les registres lettrés lus par la C47 (`M` `S` pour loc / scale, `N` `P` pour n / p,
+  `R` pour λ…), puis l'instruction (`Normlₚ`, `Binom◭`…). Les conventions qui diffèrent de scipy sont compensées :
+  `sf` discret (la C47 donne P(X ≥ k)), loi géométrique (la C47 compte les échecs), binomiale négative (1 − p).
+  Les 52 combinaisons loi × méthode sont vérifiées sur le simulateur.
+- `c47.NOM(...)` (`import c47`) : n'importe quelle instruction C47 par son nom, arguments dans l'ordre de la pile ;
+  `c47.call("ft→m", x)` pour un nom qui contient des symboles (conversions, dates, lois…) : toutes les instructions
+  de la C47 sont ainsi accessibles. L'aide C47 de DM42 Editor les liste toutes par domaine.
+- Opérateurs bit à bit `&` `|` `^` `~` : en entiers courts (`SINT` … `AND` / `OR` / `XOR` / `NOT` … `LINT`), car sur
+  des entiers longs ces instructions sont logiques ; `<<` et `>>` passent par 2ⁿ, exacts en entier long.
+- `math.fmod` → `RMD`, `numpy.sign` → `sign`.
+
+Les 80 fonctions sont vérifiées sur le simulateur C47 contre Python ou des valeurs publiées (écart relatif < 10⁻⁹).
+Quand la C47 attend les arguments dans l'autre ordre que Python (`ellipkinc`, `gammainc`…), la table les inverse.
+
+Six exemples propres à la C47 (`ExamplesC47`, menu « Exemples C47 / R47 » de DM42 Editor) montrent ce que cette cible
+ajoute : factorielle récursive en entiers longs exacts (25!), Fibonacci récursif et itératif, tours de Hanoï, années
+bissextiles (`and` / `or`), Collatz et recherche de nombre premier (`while`, `break`), textes de plus de 6 caractères.
+
+Douze programmes de la distribution C47 (dossier `PROGRAMS` du simulateur) sont réécrits en Python
+(`ExamplesC47.Programs`, sous-menu « Programmes de la distribution C47 ») : BMI, FactIt, NQueens, PAYCALC, TRI∡ (cas
+côté-côté-côté), sums, FreeF, IBessI, OpAmp, ECA, Bairsto et STRUCT. Chacun donne au simulateur C47 les résultats de
+Python, sur 34 chiffres. Les jeux, graphiques, menus et programmes à manipulation de textes (ROMANv2) ne sont pas repris.
+
+Le listing garde les noms HP-42S des fonctions (`+/-`, `ARCL`…) : DM42 Editor les convertit (`C47.Core/Hp42Converter.cs`),
+encode le `.p47` et lance le simulateur C47 (F5 de la fenêtre Python). Le simulateur intégré de Py42 reste celui de la HP-42S.
+
 ## Limites (à connaître)
 
 - **Pile de 4 niveaux** : l'ordre d'évaluation est optimisé (méthode de Sethi-Ullman) et ce qui dépasse est calculé à l'avance dans des variables `S1`, `S2`…

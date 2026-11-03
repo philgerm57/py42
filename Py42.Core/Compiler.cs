@@ -11,7 +11,11 @@ public sealed class CompileOptions
     public bool Radians { get; set; } = true;
     /// <summary>Met les noms de variables et de labels en majuscules (plus simple à taper sur la calculatrice).</summary>
     public bool UpperCase { get; set; } = true;
+    /// <summary>Calculatrice visée : HP-42S / DM42, ou C47 / R47 (structures IF/DO/FOR, registres locaux LocR, textes dans X).</summary>
+    public Target Target { get; set; } = Target.Hp42;
 }
+
+public enum Target { Hp42, C47 }
 
 public sealed class CompileResult
 {
@@ -61,6 +65,11 @@ public sealed partial class Compiler
     readonly Dictionary<string, int> retCount = new();                  // nombre de valeurs renvoyées par fonction
     readonly Dictionary<string, List<string>> mvars = new();            // label global -> variables MVAR
     string curGlobal = "";
+    bool C47 => o.Target == Target.C47;
+    /// <summary>C47 : nombre de variables locales de chaque fonction, et LocR à déclarer sous chaque label global.</summary>
+    readonly Dictionary<string, int> localCount = new(), locR = new();
+    int curLocals;
+    bool flagsUsed;
     Def? fn;
     int labelN, tempN, curLine, maxStack;
     bool usesTrig;
@@ -152,9 +161,11 @@ public sealed partial class Compiler
             curGlobal = pn;
             rename = new();
             fn = null;
+            curLocals = 0; flagsUsed = false;
             GenBlock(main);
             curLine = main[^1].Line;
             Emit(K.Rtn);
+            NoteLocR(pn);
         }
         foreach (var d in order.Skip(initLabel != null ? 1 : 0)) GenFunc(d);
         curLine = 0;
@@ -168,6 +179,7 @@ public sealed partial class Compiler
             Emit(K.LblG, Label(d.Name));
             entries.Add(Label(d.Name));
             curGlobal = Label(d.Name);
+            curLocals = localCount.GetValueOrDefault(d.Name); flagsUsed = false;
             for (int i = d.Params.Count - 1; i >= 0; i--)
             {
                 Emit(K.Sto, Var(d.Params[i]));
@@ -176,6 +188,13 @@ public sealed partial class Compiler
             if (initLabel != null && d.Name == "main") Emit(K.Xeq, initLabel);
             GenBlock(d.Body);
             if (d.Body.Count == 0 || d.Body[^1] is not Return) { curLine = d.Line; Emit(K.Rtn); }
+            NoteLocR(Label(d.Name));
+        }
+
+        // C47 : registres locaux (variables, intermédiaires) ou indicateurs locaux (conditions and / or) de la routine
+        void NoteLocR(string label)
+        {
+            if (C47 && (curLocals > 0 || flagsUsed)) locR[label] = curLocals;
         }
         Emit(K.End);
 
@@ -193,6 +212,8 @@ public sealed partial class Compiler
             var ins = new List<Instr>();
             if (mvars.TryGetValue(lbl.Arg, out var mv))
                 foreach (var v in mv) ins.Add(new Instr(K.Mvar, v, 0, lbl.Line));
+            // LocR avant les paramètres rangés dans .00, .01… et avant tout FOR de la routine
+            if (locR.TryGetValue(lbl.Arg, out int lr)) ins.Add(new Instr(K.Cmd, $"LocR {lr:00}", 0, lbl.Line));
             if (radAt.Contains(at)) foreach (var m in modes) ins.Add(new Instr(K.Mode, m, 0, lbl.Line));
             code.InsertRange(at + 1, ins);
         }
@@ -306,7 +327,23 @@ public sealed partial class Compiler
             path.RemoveAt(path.Count - 1);
             state[f] = 2;
         }
-        foreach (var f in funcs.Keys) Visit(f, new List<string>());
+        // C47 : chaque appel a ses registres locaux (LocR), la récursivité est permise
+        if (!C47) foreach (var f in funcs.Keys) Visit(f, new List<string>());
+
+        // C47 : variables locales dans les registres locaux .00, .01… de la fonction
+        if (C47)
+        {
+            foreach (var d in funcs.Values)
+            {
+                var map = new Dictionary<string, string>();
+                foreach (var n in locals[d.Name].OrderBy(x => d.Params.IndexOf(x) is int p && p >= 0 ? p : 1000).ThenBy(x => x, StringComparer.Ordinal))
+                    map[n] = "." + map.Count.ToString("00");
+                if (map.Count > 99) throw new CompileError($"La fonction « {d.Name} » a plus de 99 variables locales", d.Line);
+                renames[d.Name] = map;
+                localCount[d.Name] = map.Count;
+            }
+            return;
+        }
 
         // Renommer les variables locales qui entrent en conflit avec un autre contexte
         foreach (var d in funcs.Values)
@@ -409,6 +446,7 @@ public sealed partial class Compiler
     string Var(string src)
     {
         string mapped = rename.TryGetValue(src, out var r) ? r : src;
+        if (Instr.IsLocalReg(mapped)) return mapped;   // registre local C47
         string n = Case(mapped);
         if (n.Length > 7)
         {
@@ -440,6 +478,12 @@ public sealed partial class Compiler
 
     string NewTemp()
     {
+        // C47 : dans une fonction, les intermédiaires vont dans des registres locaux (appels récursifs possibles)
+        if (C47 && fn != null)
+        {
+            if (curLocals > 98) throw new CompileError($"La fonction « {fn.Name} » a besoin de plus de 99 registres locaux", curLine);
+            return "." + (curLocals++).ToString("00");
+        }
         string t;
         do { tempN++; t = "T" + tempN; } while (sourceNames.Contains(t) || varBack.ContainsKey(t));
         varBack[t] = t;
@@ -500,12 +544,13 @@ public sealed partial class Compiler
     int Need(Expr e) => e switch
     {
         Num or Const or Name => 1,
-        Str s when s.Value.Length > 6 => throw new CompileError($"Texte « {s.Value} » trop long : une variable ou un élément de matrice HP42 contient 6 caractères au plus. Pour afficher un texte et une valeur : print(\"texte\", x) ou print(\"texte\" + str(x))", s.Line),
+        Str s when !C47 && s.Value.Length > 6 => throw new CompileError($"Texte « {s.Value} » trop long : une variable ou un élément de matrice HP42 contient 6 caractères au plus. Pour afficher un texte et une valeur : print(\"texte\", x) ou print(\"texte\" + str(x))", s.Line),
         Str => 1,
         Unary u => Need(u.A),
         Bin b when CpxConst(b) != null => 2,
         Bin b when RclOpt(b) => Math.Max(Need(b.A), 1),
         Bin b when SqOpt(b) != null => Need(b.A),
+        Bin { Op: "<<" or ">>" } b => Math.Max(Pair(Need(b.A), Need(b.B)), 3),   // 2 empilé pour 2ⁿ
         Bin b => Pair(Need(b.A), Need(b.B)),
         Call c => NeedCall(c),
         Cmp or BoolOp or Not => throw new CompileError("Une comparaison ne peut servir que comme condition de if ou while", e.Line),
@@ -525,6 +570,7 @@ public sealed partial class Compiler
             for (int i = 0; i < c.Args.Count; i++) m = Math.Max(m, i + Need(c.Args[i]));
             return m;
         }
+        if (NeedC47(c) is int c47Need and >= 0) return c47Need;   // cible C47 : table, constante, c47.NOM(...)
         if (Hp42.FlagTests.ContainsKey(c.Func))
             throw new CompileError($"{c.Func}() est un test de drapeau : utilisez-le dans une condition (if {c.Func}(21): ...)", c.Line);
         if (Hp42.TypeTests.ContainsKey(c.Func))
@@ -643,7 +689,9 @@ public sealed partial class Compiler
                 Expr ip = new Call("int", new() { new Bin("+", scaled, new Bin("*", new Num(0.5, "0.5", l), sign, l), l) }, l);
                 return nDec == 0 ? ip : new Bin("/", ip, kNum, l);
             }
-            case Call { Func: "floor" or "ceil" } fc when !IsUser(fc.Func):
+            case Call sc when C47 && !IsUser(sc.Func) && C47Functions.FindStatistics(sc.Func) != null: return GenStatistics(sc);
+            case Call dc when C47 && dc.Func.StartsWith("stats:"): return GenDistribution(dc);
+            case Call { Func: "floor" or "ceil" } fc when !IsUser(fc.Func) && !C47:   // C47 : floor et ceil natifs
             {
                 // floor(x) = x - (x MOD 1), ceil(x) = x + (-x MOD 1) : le MOD de la HP-42S a le signe du diviseur,
                 // donc x MOD 1 est toujours dans [0, 1[, y compris pour x négatif (pas de test ni de saut)
@@ -709,6 +757,7 @@ public sealed partial class Compiler
             case Unary u:
                 Gen(u.A);
                 if (u.Op == "-") Emit(K.Fn, "+/-");
+                else if (u.Op == "~") { BitsOnly(u.Line); Emit(K.Fn, "SINT"); Emit(K.Fn, "NOT"); Emit(K.Fn, "LINT"); }   // ~x = -x - 1
                 break;
             case Bin b: GenBin(b); break;
             case Call c: GenCall(c); break;
@@ -739,7 +788,7 @@ public sealed partial class Compiler
             return;
         }
         bool swapped = GenPair(b.A, b.B);
-        bool commutative = b.Op is "+" || (b.Op == "*" && !(IsMat(b.A) && IsMat(b.B)));
+        bool commutative = b.Op is "+" or "&" or "|" or "^" || (b.Op == "*" && !(IsMat(b.A) && IsMat(b.B)));
         if (swapped && !commutative) Emit(K.Stk, "X<>Y");
         switch (b.Op)
         {
@@ -749,6 +798,24 @@ public sealed partial class Compiler
             case "/": Emit(K.Op, "÷"); break;
             case "**": Emit(K.Op, "Y↑X"); break;
             case "%": Emit(K.Op, "MOD"); break;
+            // C47 : bit à bit en entiers courts (SINT … LINT) ; sur des entiers longs, AND / OR / XOR sont logiques
+            case "&" or "|" or "^":
+                BitsOnly(b.Line);
+                Emit(K.Fn, "SINT");
+                Emit(K.Stk, "X<>Y");
+                Emit(K.Fn, "SINT");
+                Emit(K.Fn, b.Op == "&" ? "AND" : b.Op == "|" ? "OR" : "XOR");
+                Emit(K.Fn, "LINT");
+                break;
+            case "<<" or ">>":
+                // x << n = x × 2ⁿ, x >> n = floor(x / 2ⁿ) : exacts en entiers longs
+                BitsOnly(b.Line);
+                Emit(K.Num, "2");
+                Emit(K.Stk, "X<>Y");
+                Emit(K.Op, "Y↑X");
+                Emit(K.Op, b.Op == "<<" ? "×" : "÷");
+                if (b.Op == ">>") Emit(K.Fn, "floor");
+                break;
             case "//":
                 Emit(K.Op, "÷");
                 Emit(K.Fn, "IP");
@@ -758,6 +825,11 @@ public sealed partial class Compiler
         }
     }
     bool warnedFloorDiv;
+
+    void BitsOnly(int line)
+    {
+        if (!C47) throw new CompileError("Opérateurs bit à bit (& | ^ ~ << >>) : disponibles avec la cible C47 ; sur la DM42, utilisez AND(), OR(), XOR() en mode BASE", line);
+    }
 
     /// <summary>Empile a puis b (ou b puis a si c'est moins profond). Renvoie vrai si inversé (X=a, Y=b).</summary>
     bool GenPair(Expr a, Expr b)
@@ -774,6 +846,7 @@ public sealed partial class Compiler
             Emit(K.Xeq, Label(c.Func));
             return;
         }
+        if (GenC47Call(c)) return;   // cible C47 (CompilerC47.cs)
         if (GenMatCall(c)) return;
         NeedCall(c); // vérifications
         if (!Unary1.ContainsKey(c.Func) && !Binary2.Contains(c.Func) && Hp42.Lookup(c.Func, c.Args.Count, out var hp))
@@ -894,6 +967,13 @@ public sealed partial class Compiler
 
     void GenCmp(Cmp c, bool when, int label)
     {
+        CmpTest(c, when);
+        Emit(K.Gto, n: label);
+    }
+
+    /// <summary>Calcule les deux membres et émet le test, vrai quand « c » vaut « when » (le saut ou le IF suit).</summary>
+    void CmpTest(Cmp c, bool when)
+    {
         string op = when ? c.Op : Inv[c.Op];
         var a = Prepare(c.A, false);
         var b = Prepare(c.B, false);
@@ -909,7 +989,6 @@ public sealed partial class Compiler
             // non inversé : Y=a X=b, donc « a op b » s'écrit « X flip(op) Y »
             Emit(K.Test, sw ? $"X{Sym[op]}Y?" : $"X{Sym[Flip[op]]}Y?");
         }
-        Emit(K.Gto, n: label);
     }
 
     // ======================================================================
@@ -1025,6 +1104,16 @@ public sealed partial class Compiler
             case ExprStmt { E: Call c } when !IsUser(c.Func) && c.Func.Equals("AVIEW", StringComparison.OrdinalIgnoreCase) && c.Args.Count > 0:
                 GenPrint(c);
                 break;
+            case ExprStmt { E: Call c } when C47 && c.Func.StartsWith("c47:"):
+            {
+                // instruction C47 appelée seule : c47.CLΣ(), c47.call("CLΣ")…
+                var (name, cargs) = c.Func == "c47:call" ? Direct(c) : (c.Func[4..], c.Args);
+                var ps = cargs.Select(a => Prepare(a, false)).ToList();
+                ps = ps.Select((x, i) => Fit(x, 4 - i)).ToList();
+                for (int i = 0; i < ps.Count; i++) { CheckDepth(ps[i], i); Gen(ps[i]); }
+                Emit(K.Fn, name);
+                break;
+            }
             case ExprStmt { E: Call c } when IsHpStatement(c): GenHpStatement(c); break;
             case ExprStmt { E: Call c } when !IsUser(c.Func) && Hp42.TypeTests.ContainsKey(c.Func):
                 throw new CompileError($"{c.Func}() est un test : utilisez-le dans une condition (if {c.Func}(x): ...)", c.Line);
@@ -1052,7 +1141,9 @@ public sealed partial class Compiler
             case ExprStmt e:
                 warnings.Add($"Ligne {e.Line} : expression sans effet, ignorée");
                 break;
+            case If i when C47: GenIfC47(i); break;
             case If i: GenIf(i); break;
+            case While w when C47 && Parser.ConstValue(w.Cond) == null: GenWhileC47(w); break;
             case While w:
             {
                 // while ... else : le bloc else s'exécute si la boucle se termine sans break
@@ -1068,6 +1159,7 @@ public sealed partial class Compiler
                 Emit(K.LblL, n: exit);
                 break;
             }
+            case For f when C47: GenForC47(f); break;
             case For f: GenFor(f); break;
             case Return r:
                 if (fn == null) throw new CompileError("return en dehors d'une fonction", r.Line);
@@ -1411,7 +1503,9 @@ public sealed partial class Compiler
             for (int i = 0; i < code.Count; i++)
             {
                 if (!Unconditional(i)) continue;
-                while (i + 1 < code.Count && code[i + 1].Kind is not (K.LblL or K.LblG or K.End))
+                // C47 : une structure (ELSE, ENDIF, ENDDO, NEXT…) ou le test d'un IF / WHILE arrête la suppression
+                while (i + 1 < code.Count && code[i + 1].Kind is not (K.LblL or K.LblG or K.End or K.Struct or K.ForTop or K.Next)
+                       && !(code[i + 1].Kind == K.Test && i + 2 < code.Count && code[i + 2].Kind == K.Struct))
                 { code.RemoveAt(i + 1); changed = true; }
             }
             // GTO nn juste avant LBL nn

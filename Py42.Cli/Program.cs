@@ -4,6 +4,7 @@ using Py42.Core;
 
 // py42 programme.py [-o sortie.txt] [--sans-numeros] [--sans-rad] [--minuscules] [--nom MAIN]
 //                   [--raw sortie.raw] [--run LABEL] [--pile "1 2"] [--entrees "3 4"] [--exemples]
+//                   [--c47] : cible C47 / R47 (structures IF/DO/FOR, registres locaux), sans simulation ni .raw
 Console.OutputEncoding = Encoding.UTF8;
 var opts = new CompileOptions();
 string? input = null, output = null, rawOut = null, run = null, pile = "", entrees = "";
@@ -24,6 +25,7 @@ for (int i = 0; i < args.Length; i++)
         case "--exemples": examples = true; break;
         case "--vars": dumpVars = true; break;
         case "--en": Tr.English = true; break;
+        case "--c47": opts.Target = Target.C47; break;
         default: input = args[i]; break;
     }
 }
@@ -40,6 +42,13 @@ int Process(string title, string src, string? entry, string stack, string inputs
         if (output != null) File.WriteAllText(output, text, new UTF8Encoding(false));
         else Console.Write(text);
         foreach (var w in res.Warnings) Console.Error.WriteLine(Tr.T("Avertissement : {0}".Replace("{0}", w)));
+        if (opts.Target == Target.C47 && (rawOut != null || entry != null))
+        {
+            // le simulateur et l'encodeur .raw sont ceux de la HP-42S ; DM42 Editor encode le .p47 et lance le simulateur C47
+            Console.Error.WriteLine(Tr.T("Cible C47 : pas de .raw ni de simulation HP-42S (DM42 Editor encode le .p47 et lance le simulateur C47)"));
+            rawOut = null;
+            entry = null;
+        }
         if (rawOut != null)
         {
             // fichier .raw pour la DM42 / Free42 (encodeur dm42dll)

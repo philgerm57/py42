@@ -22,7 +22,12 @@ public enum K
     Cmd,        // commande HP42S libre : texte dans Arg (BEEP, FIX 02, SF 21, PIXEL...)
     KeyGto,     // KEY n GTO nn : Arg = touche (1-9), N = label local
     Mvar,       // MVAR "X"
-    VarMenu     // VARMENU "PROG"
+    VarMenu,    // VARMENU "PROG"
+    // cible C47 / R47 seulement
+    Struct,     // IF ELSE ENDIF DO WHILE ENDDO : Arg = le mot (numérotés par l'encodeur, comme VALID)
+    ForTop,     // FORᵀᴼᴾ "I" : compteur (variable ou registre local .nn), début Z, fin Y, pas X
+    Next,       // NEXT "I"
+    StrLit      // ‘TEXTE’ : texte poussé dans X (pas dans ALPHA)
 }
 
 /// <summary>Une ligne de programme HP42S, avec la ligne Python qui l'a produite.</summary>
@@ -39,29 +44,39 @@ public sealed class Instr
     /// <summary>Instruction qui saute vers un label local (GTO nn ou KEY n GTO nn).</summary>
     public bool IsJump => Kind is K.Gto or K.KeyGto;
 
+    /// <summary>Registre local de la C47 (.00 à .98) : écrit sans guillemets, contrairement à une variable.</summary>
+    public static bool IsLocalReg(string arg) => arg.Length == 3 && arg[0] == '.' && char.IsDigit(arg[1]) && char.IsDigit(arg[2]);
+
+    /// <summary>Variable entre guillemets, registre local tel quel.</summary>
+    static string Q(string arg) => IsLocalReg(arg) ? arg : $"\"{arg}\"";
+
     public override string ToString() => Kind switch
     {
         K.LblG => $"LBL \"{Arg}\"",
         K.LblL => $"LBL {N:00}",
         K.Num => Arg,
-        K.Rcl => $"RCL \"{Arg}\"",
-        K.Sto => $"STO \"{Arg}\"",
-        K.StoOp => $"STO{Op(N)} \"{Arg}\"",
-        K.RclOp => $"RCL{Op(N)} \"{Arg}\"",
+        K.Rcl => $"RCL {Q(Arg)}",
+        K.Sto => $"STO {Q(Arg)}",
+        K.StoOp => $"STO{Op(N)} {Q(Arg)}",
+        K.RclOp => $"RCL{Op(N)} {Q(Arg)}",
+        K.Struct => Arg,
+        K.ForTop => $"FORᵀᴼᴾ {Q(Arg)}",
+        K.Next => $"NEXT {Q(Arg)}",
+        K.StrLit => $"‘{Arg}’",
         K.Op or K.Fn or K.Const or K.Test or K.Stk or K.Mode => Arg,
         K.Gto => $"GTO {N:00}",
         K.Xeq => $"XEQ \"{Arg}\"",
         K.Rtn => "RTN",
         K.End => "END",
-        K.ViewVar => $"VIEW \"{Arg}\"",
+        K.ViewVar => $"VIEW {Q(Arg)}",
         K.ViewX => "VIEW ST X",
         K.AStr => $"\"{Arg}\"",
         K.AStrAppend => $"⊢\"{Arg}\"",
-        K.ArclVar => $"ARCL \"{Arg}\"",
+        K.ArclVar => $"ARCL {Q(Arg)}",
         K.ArclX => "ARCL ST X",
         K.Cla => "CLA",
         K.AView => "AVIEW",
-        K.Input => $"INPUT \"{Arg}\"",
+        K.Input => $"INPUT {Q(Arg)}",
         K.Stop => "STOP",
         K.Cmd => Arg,
         K.KeyGto => $"KEY {Arg} GTO {N:00}",

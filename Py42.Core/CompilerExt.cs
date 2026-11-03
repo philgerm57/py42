@@ -267,7 +267,7 @@ public sealed partial class Compiler
         if (c.Args[1] is ListLit) throw new CompileError("append() ajoute un nombre ou un texte, pas une liste", c.Line);
         GenValue(new Bin("+", new Call("rows", new() { b }, c.Line), new Num(1, "1", c.Line), c.Line));
         Emit(K.Num, "1");
-        Emit(K.Cmd, $"DIM \"{Var(b.Id)}\"");
+        Emit(K.Cmd, $"DIM {Ref(Var(b.Id))}");
         maxStack = Math.Max(maxStack, 2);
         GenIndexAssign(new IndexAssign(new Index(b, new() { new Num(-1, "-1", c.Line) }, c.Line), c.Args[1], c.Line));
     }
@@ -303,7 +303,7 @@ public sealed partial class Compiler
         }
         GenValue(new Bin("-", new Call("rows", new() { b }, c.Line), new Num(1, "1", c.Line), c.Line));
         Emit(K.Num, "1");
-        Emit(K.Cmd, $"DIM \"{Var(b.Id)}\"");
+        Emit(K.Cmd, $"DIM {Ref(Var(b.Id))}");
         maxStack = Math.Max(maxStack, 2);
     }
 
@@ -431,7 +431,7 @@ public sealed partial class Compiler
     void PointTo(Name m, Expr i, Expr j)
     {
         GenIJ(i, j);
-        Emit(K.Cmd, $"INDEX \"{MatName(m)}\"");
+        Emit(K.Cmd, $"INDEX {Ref(MatName(m))}");
         Emit(K.Cmd, "STOIJ");
         Emit(K.Stk, "R↓");
         Emit(K.Stk, "R↓");
@@ -443,6 +443,10 @@ public sealed partial class Compiler
     {
         switch (e)
         {
+            case Str st when C47:
+                // C47 : le texte est une valeur, poussée dans X, sans limite de 6 caractères
+                Emit(K.StrLit, st.Value.Replace("’", "'"));
+                return true;
             case Str st:
                 // texte (6 caractères max) : ALPHA puis ASTO ST X
                 Need(st);
@@ -590,7 +594,7 @@ public sealed partial class Compiler
             if (vc.Rpn == "VIEW") Emit(K.ViewVar, v);
             else if (vc.Rpn == "INPUT") Emit(K.Input, v);
             else if (vc.Rpn == "ARCL") Emit(K.ArclVar, v);
-            else Emit(K.Cmd, $"{vc.Rpn} \"{v}\"");
+            else Emit(K.Cmd, $"{vc.Rpn} {Ref(v)}");
             return;
         }
         if (Hp42.LabelCommands.TryGetValue(c.Func, out var lc))
@@ -654,7 +658,7 @@ public sealed partial class Compiler
         Emit(K.Num, nc.ToString());
         Emit(K.Cmd, "NEWMAT");
         Emit(K.Sto, hpName);
-        Emit(K.Cmd, $"INDEX \"{hpName}\"");
+        Emit(K.Cmd, $"INDEX {Ref(hpName)}");
         int total = nr * nc, k = 0;
         for (int i = 0; i < nr; i++)
             for (int j = 0; j < nc; j++, k++)
@@ -674,7 +678,7 @@ public sealed partial class Compiler
                     Gen(f);
                     Emit(K.Num, (i + 1).ToString());
                     Emit(K.Num, (j + 1).ToString());
-                    Emit(K.Cmd, $"INDEX \"{hpName}\"");
+                    Emit(K.Cmd, $"INDEX {Ref(hpName)}");
                     Emit(K.Cmd, "STOIJ");
                     Emit(K.Stk, "R↓");
                     Emit(K.Stk, "R↓");

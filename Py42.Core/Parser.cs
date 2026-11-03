@@ -8,8 +8,13 @@ public sealed class Parser
     readonly List<Tok> toks;
     int p;
     /// <summary>Modules importés et leurs alias (import numpy as np).</summary>
-    readonly HashSet<string> modules = new() { "math", "cmath", "numpy", "np" };
-    static readonly HashSet<string> KnownModules = new() { "math", "cmath", "numpy" };
+    readonly HashSet<string> modules = new() { "math", "cmath", "numpy", "np", "statistics", "scipy", "sympy", "c47" };
+    /// <summary>Cible C47 : scipy (special, constants), statistics, sympy, et le pseudo-module c47 (appel direct d'une instruction).</summary>
+    static readonly HashSet<string> KnownModules = new() { "math", "cmath", "numpy", "statistics", "scipy", "sympy", "c47" };
+    /// <summary>Noms qui désignent scipy.constants (import scipy.constants as sc, from scipy import constants).</summary>
+    readonly HashSet<string> constModules = new() { "constants" };
+    /// <summary>scipy.stats importé sous un autre nom (st), et lois importées seules (from scipy.stats import norm).</summary>
+    readonly HashSet<string> statsModules = new() { "stats" }, distModules = new();
 
     Parser(List<Tok> toks) { this.toks = toks; }
 
@@ -111,7 +116,7 @@ public sealed class Parser
         return output;
     }
 
-    static readonly string[] AugOps = { "+=", "-=", "*=", "/=", "**=", "%=", "//=", "@=" };
+    static readonly string[] AugOps = { "+=", "-=", "*=", "/=", "**=", "%=", "//=", "@=", "&=", "|=", "^=", "<<=", ">>=" };
 
     Stmt? Simple()
     {
@@ -153,9 +158,26 @@ public sealed class Parser
                     while (!Is(T.NL) && !Is(T.EOF) && !IsOp(";")) words.Add(Next().V);
                     var found = words.Where(KnownModules.Contains).ToList();
                     if (found.Count == 0)
-                        throw new CompileError("Modules disponibles : math, cmath (complexes) et numpy (matrices)", line);
+                        throw new CompileError("Modules disponibles : math, cmath (complexes) et numpy (matrices) ; pour la C47 aussi scipy, statistics, sympy et c47", line);
                     int asAt = words.IndexOf("as");
-                    if (asAt >= 0 && asAt + 1 < words.Count) modules.Add(words[asAt + 1]);
+                    if (asAt >= 0 && asAt + 1 < words.Count)
+                    {
+                        modules.Add(words[asAt + 1]);
+                        if (words.Contains("constants")) constModules.Add(words[asAt + 1]);   // import scipy.constants as sc
+                    }
+                    if (words.Contains("special") || words.Contains("constants")) { modules.Add("special"); modules.Add("constants"); }
+                    if (words.Contains("stats"))
+                    {
+                        // import scipy.stats as st ; from scipy.stats import norm, binom
+                        if (asAt >= 0 && asAt + 1 < words.Count && words[asAt + 1] != "stats") statsModules.Add(words[asAt + 1]);
+                        int importAt = words.IndexOf("import");
+                        if (words[0] == "from" && importAt >= 0)
+                            foreach (var w in words.Skip(importAt + 1).Where(w => w is not ("," or "as")))
+                            {
+                                if (w == "stats") { statsModules.Add(w); modules.Add(w); }
+                                else { distModules.Add(w); modules.Add(w); }
+                            }
+                    }
                     return new Import(string.Join(",", found), line);
                 }
                 case "global":
@@ -343,13 +365,13 @@ public sealed class Parser
 
     Expr Comparison()
     {
-        var first = Arith();
+        var first = BitOr();
         Expr? result = null;
         var left = first;
         while (Cur.Kind == T.Op && CmpOps.Contains(Cur.V))
         {
             var t = Next();
-            var right = Arith();
+            var right = BitOr();
             var c = new Cmp(t.V, left, right, t.Line);
             result = result == null ? c : new BoolOp("and", result, c, t.Line); // a < b < c
             left = right;
@@ -377,6 +399,35 @@ public sealed class Parser
         return result ?? first;
     }
 
+    // opérateurs bit à bit, priorités de Python : | < ^ < & < décalages < + -
+    Expr BitOr()
+    {
+        var l = BitXor();
+        while (IsOp("|")) { var t = Next(); l = new Bin("|", l, BitXor(), t.Line); }
+        return l;
+    }
+
+    Expr BitXor()
+    {
+        var l = BitAnd();
+        while (IsOp("^")) { var t = Next(); l = new Bin("^", l, BitAnd(), t.Line); }
+        return l;
+    }
+
+    Expr BitAnd()
+    {
+        var l = Shift();
+        while (IsOp("&")) { var t = Next(); l = new Bin("&", l, Shift(), t.Line); }
+        return l;
+    }
+
+    Expr Shift()
+    {
+        var l = Arith();
+        while (IsOp("<<") || IsOp(">>")) { var t = Next(); l = new Bin(t.V, l, Arith(), t.Line); }
+        return l;
+    }
+
     Expr Arith()
     {
         var l = Term();
@@ -393,7 +444,7 @@ public sealed class Parser
 
     Expr UnaryExpr()
     {
-        if (IsOp("-") || IsOp("+")) { var t = Next(); return new Unary(t.V, UnaryExpr(), t.Line); }
+        if (IsOp("-") || IsOp("+") || IsOp("~")) { var t = Next(); return new Unary(t.V, UnaryExpr(), t.Line); }
         return Power();
     }
 
@@ -521,11 +572,27 @@ public sealed class Parser
                 {
                     Next();
                     string attr = Expect(T.Name, null, "Nom attendu après « . »").V;
-                    if (attr == "linalg" && IsOp("."))   // np.linalg.inv(...)
+                    // lois de probabilité : scipy.stats.norm.pdf(...), st.norm.cdf(...), norm.ppf(...) → « stats:norm.pdf »
+                    string? dist = distModules.Contains(name) ? name : null;
+                    if (dist == null && (attr == "stats" || statsModules.Contains(name)) && IsOp("."))
+                    {
+                        if (attr == "stats") { Next(); attr = Expect(T.Name, null, "Loi attendue après « stats. »").V; }
+                        dist = attr;
+                        if (!IsOp(".")) throw new CompileError($"scipy.stats.{dist} : précisez la méthode (pdf, pmf, cdf, sf, ppf)", line);
+                        Next();
+                        attr = Expect(T.Name, null, "Méthode attendue (pdf, pmf, cdf, sf, ppf)").V;
+                    }
+                    if (dist != null) attr = "stats:" + dist + "." + attr;
+                    bool constant = constModules.Contains(name);
+                    if (attr is "linalg" or "special" or "constants" && IsOp("."))   // np.linalg.inv(...), scipy.special.zeta(...)
                     {
                         Next();
-                        attr = Expect(T.Name, null, "Nom attendu après « linalg. »").V;
+                        constant = attr == "constants";
+                        attr = Expect(T.Name, null, $"Nom attendu après « {attr}. »").V;
                     }
+                    // scipy.constants.c : constante (cible C47) ; c47.NOM(...) : instruction C47 appelée directement
+                    if (constant && !IsOp("(")) return new Call("const:" + attr, new List<Expr>(), line);
+                    if (name == "c47") attr = "c47:" + attr;
                     if (!IsOp("("))
                     {
                         if (attr is "pi" or "e") return new Const(attr, line);
