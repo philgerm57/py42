@@ -191,6 +191,7 @@ public static class Simulator
         {
             if (code[i].Kind == K.LblG) labels["\"" + code[i].Arg] = i;
             if (code[i].Kind == K.LblL) labels[code[i].N.ToString()] = i;
+            if (code[i].Kind == K.LblG) labels.TryAdd("#" + code[i].Arg, i);   // GTO "NOM" d'un listing RPN
         }
         Val x = Val.Zero, y = Val.Zero, z = Val.Zero, t = Val.Zero;
         void Lift(Val v) { t = z; z = y; y = x; x = v; }
@@ -235,8 +236,11 @@ public static class Simulator
 
         double ToRad(double a) => rad ? a : a * Math.PI / 180;
         double FromRad(double a) => rad ? a : a * 180 / Math.PI;
+        // registre numéroté d'un listing RPN (RCL 05) : 0 tant qu'il n'a rien reçu, comme sur la calculatrice
         Val Get(string n) => vars.TryGetValue(n, out var v) ? v
+            : n.Length > 0 && n.All(char.IsDigit) ? Val.Zero
             : throw new SimError($"Nonexistent : la variable « {n} » n'existe pas encore");
+        bool noLift = false;   // après ENTER, le nombre tapé remplace X (listings RPN ; Py42 n'émet pas ENTER)
         Val Indexed()
         {
             if (idxName == null) throw new SimError("Nonexistent : aucune matrice indexée (INDEX)");
@@ -309,10 +313,17 @@ public static class Simulator
             {
                 if (++r.Steps > maxSteps) throw new SimError($"Arrêt après {maxSteps} pas : boucle infinie ?");
                 var ins = code[pc++];
+                bool liftOff = noLift;   // ENTER ne vaut que pour l'instruction qui le suit
+                noLift = false;
                 switch (ins.Kind)
                 {
                     case K.LblG: case K.LblL: break;
-                    case K.Num: Lift(Val.R(double.Parse(ins.Arg.Replace("ᴇ", "E"), NumberStyles.Float, CultureInfo.InvariantCulture))); break;
+                    case K.Num:
+                    {
+                        var nv = Val.R(double.Parse(ins.Arg.Replace("ᴇ", "E"), NumberStyles.Float, CultureInfo.InvariantCulture));
+                        if (liftOff) x = nv; else Lift(nv);
+                        break;
+                    }
                     case K.Const: Lift(Val.R(Math.PI)); break;
                     case K.Rcl: Lift(Get(ins.Arg).Copy()); break;
                     case K.Sto: vars[ins.Arg] = x.Copy(); break;
@@ -323,7 +334,20 @@ public static class Simulator
                     case K.Test:
                     {
                         bool ok;
-                        if (ins.Arg.StartsWith("F"))
+                        if (ins.Arg.StartsWith("ISG ") || ins.Arg.StartsWith("DSE "))
+                        {
+                            // compteur ccccc.fffii : ISG saute quand c > fff, DSE quand c ≤ fff
+                            string reg = ins.Arg[4..];
+                            double cv = Get(reg).Real;
+                            double ac = Math.Abs(cv), frac = Math.Round((ac - Math.Truncate(ac)) * 100000);
+                            double cnt = Math.Truncate(cv), fin = Math.Floor(frac / 100), step = frac % 100;
+                            if (step == 0) step = 1;
+                            bool isg = ins.Arg.StartsWith("ISG");
+                            cnt += isg ? step : -step;
+                            vars[reg] = Val.R(cnt + Math.Sign(cnt == 0 ? 1 : cnt) * frac / 100000);
+                            ok = isg ? cnt <= fin : cnt > fin;
+                        }
+                        else if (ins.Arg.StartsWith("F"))
                         {
                             int f = int.Parse(ins.Arg[^2..]);
                             ok = ins.Arg.StartsWith("FS") ? flags[f] : !flags[f];
@@ -337,9 +361,19 @@ public static class Simulator
                         if (!ok) pc++;
                         break;
                     }
-                    case K.Gto: pc = labels[ins.N.ToString()]; break;
+                    case K.Gto:
+                        if (ins.Arg.Length > 0)
+                        {
+                            // GTO "NOM" d'un listing RPN
+                            if (!labels.TryGetValue("#" + ins.Arg, out int gl)) throw new SimError($"Label « {ins.Arg} » introuvable");
+                            pc = gl;
+                        }
+                        else if (!labels.TryGetValue(ins.N.ToString(), out pc)) throw new SimError($"Label {ins.N:00} introuvable");
+                        break;
                     case K.Xeq:
-                        if (!labels.TryGetValue("\"" + ins.Arg, out int target)) throw new SimError($"Label « {ins.Arg} » introuvable");
+                        // XEQ 05 d'un listing RPN : Arg vide, label local dans N
+                        if (!labels.TryGetValue(ins.Arg.Length == 0 ? ins.N.ToString() : "\"" + ins.Arg, out int target))
+                            throw new SimError($"Label « {(ins.Arg.Length == 0 ? ins.N.ToString("00") : ins.Arg)} » introuvable");
                         calls.Push(pc);
                         r.MaxCallDepth = Math.Max(r.MaxCallDepth, calls.Count);
                         pc = target;
@@ -354,6 +388,8 @@ public static class Simulator
                         {
                             case "R↓": { var ox = x; x = y; y = z; z = t; t = ox; break; }
                             case "X<>Y": (x, y) = (y, x); break;
+                            case "ENTER": Lift(x.Copy()); noLift = true; break;
+                            case "R↑": { var ot = t; t = z; z = y; y = x; x = ot; break; }
                             case "STO ST Y": y = x; break;
                             case "→POL":
                             {
