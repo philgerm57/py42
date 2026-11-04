@@ -27,6 +27,7 @@ public static class RpnListing
             string s = StripComment(lines[li]).Trim();
             if (s.Length == 0 || s.StartsWith("{")) continue;
             s = StepRx.Replace(s, "").Trim();
+            if (s.StartsWith("{")) continue;   // en-tête numéroté : 00 { 60-Byte Prgm }
             if (s.Length == 0 || s == ".END.") { if (s == ".END.") code.Add(new Instr(K.End, line: li + 1)); continue; }
             var ins = Read(s, warnings, li + 1);
             ins.Line = li + 1;   // ligne de l'éditeur (1-based), pour situer une erreur
@@ -48,6 +49,10 @@ public static class RpnListing
         }
         return s;
     }
+
+    /// <summary>"NOM" → NOM ; st y → ST Y ; 05 reste 05.</summary>
+    static string Operand(string a) =>
+        a.StartsWith("ST ", StringComparison.OrdinalIgnoreCase) ? "ST " + a[3..].Trim().ToUpperInvariant() : Unq(a);
 
     static string Unq(string a) => a.Length >= 2 && a[0] == '"' && a[^1] == '"' ? a[1..^1] : a;
 
@@ -73,6 +78,9 @@ public static class RpnListing
         string arg = sp < 0 ? "" : s[(sp + 1)..].Trim();
         bool ind = arg.StartsWith("IND ", StringComparison.OrdinalIgnoreCase);
         bool st = arg.StartsWith("ST ", StringComparison.OrdinalIgnoreCase);
+        // opérande : variable, registre numéroté, registre de pile (ST X) ou adresse indirecte (IND 05, IND "N", IND ST X)
+        string name = ind ? "IND " + Operand(arg[4..].Trim()) : Operand(arg);
+        if (name.EndsWith("ST L")) warnings.Add($"Ligne {line} : « {s} » (ST L, LASTX) n'est pas simulé");
 
         switch (op)
         {
@@ -81,10 +89,12 @@ public static class RpnListing
                 if (Local(arg) is int ll) return new Instr(K.LblL, n: ll);
                 break;
             case "GTO":
+                if (ind) return new Instr(K.Gto, name);
                 if (arg.StartsWith("\"")) return new Instr(K.Gto, Unq(arg));
                 if (Local(arg) is int gl) return new Instr(K.Gto, n: gl);
                 break;
             case "XEQ":
+                if (ind) return new Instr(K.Xeq, name);
                 if (arg.StartsWith("\"")) return new Instr(K.Xeq, Unq(arg));
                 if (Local(arg) is int xl) return new Instr(K.Xeq, n: xl);
                 break;
@@ -111,10 +121,10 @@ public static class RpnListing
             case "MVAR": return new Instr(K.Mvar, Unq(arg));
             case "VARMENU": return new Instr(K.VarMenu, Unq(arg));
             case "ISG": case "DSE":
-                if (!ind && !st && arg.Length > 0) return new Instr(K.Test, op + " " + Unq(arg));
+                if (arg.Length > 0) return new Instr(K.Test, op + " " + name);
                 break;
             case "FS?": case "FC?": case "FS?C": case "FC?C":
-                if (!ind && arg.Length > 0) return new Instr(K.Test, op + " " + arg.PadLeft(2, '0'));
+                if (arg.Length > 0) return new Instr(K.Test, op + " " + (ind ? name : arg.PadLeft(2, '0')));
                 break;
             case "MAT?": case "CPX?": case "REAL?": case "STR?":
                 return new Instr(K.Test, op);
@@ -134,35 +144,24 @@ public static class RpnListing
             return new Instr(K.Test, t);
         }
 
-        // RCL, STO, VIEW, ARCL, INPUT et leurs variantes STO+ RCL× … sur une variable ou un registre numéroté
-        if (!ind && arg.Length > 0)
+        // RCL, STO, VIEW, ARCL, INPUT, X<> et les variantes STO+ RCL× … sur une variable, un registre numéroté,
+        // un registre de pile ou une adresse indirecte (résolue à l'exécution par le simulateur)
+        if (arg.Length > 0)
         {
-            string name = Unq(arg);
-            if (st)
+            if (st && op == "VIEW" && name == "ST X") return new Instr(K.ViewX);
+            if (st && op == "ARCL" && name == "ST X") return new Instr(K.ArclX);
+            switch (op)
             {
-                string reg = arg[3..].Trim().ToUpperInvariant();
-                if (op == "VIEW" && reg == "X") return new Instr(K.ViewX);
-                if (op == "ARCL" && reg == "X") return new Instr(K.ArclX);
-                if (op == "STO" && reg == "Y") return new Instr(K.Stk, "STO ST Y");
+                case "RCL": return new Instr(K.Rcl, name);
+                case "STO": return new Instr(K.Sto, name);
+                case "VIEW": return new Instr(K.ViewVar, name);
+                case "ARCL": return new Instr(K.ArclVar, name);
+                case "INPUT": return new Instr(K.Input, name);
+                case "X<>": case "X⇄": return new Instr(K.Cmd, "X<> " + name);
             }
-            else
-            {
-                switch (op)
-                {
-                    case "RCL": return new Instr(K.Rcl, name);
-                    case "STO": return new Instr(K.Sto, name);
-                    case "VIEW": return new Instr(K.ViewVar, name);
-                    case "ARCL": return new Instr(K.ArclVar, name);
-                    case "INPUT": return new Instr(K.Input, name);
-                }
-                if ((op.StartsWith("STO") || op.StartsWith("RCL")) && op.Length == 4 && OpIndex(op[3..]) is int oi and >= 0)
-                    return new Instr(op.StartsWith("STO") ? K.StoOp : K.RclOp, name, oi);
-            }
-        }
-        if (ind || st)
-        {
-            warnings.Add($"Ligne {line} : « {s} » (adressage {(ind ? "IND" : "ST")}) n'est pas simulé");
-            return new Instr(K.Cmd, "·" + s);   // nom inconnu : le simulateur le signale et continue
+            if ((op.StartsWith("STO") || op.StartsWith("RCL")) && op.Length == 4 && OpIndex(op[3..]) is int oi and >= 0)
+                return new Instr(op.StartsWith("STO") ? K.StoOp : K.RclOp, name, oi);
+            if (ind || st) return new Instr(K.Cmd, op + " " + name);   // FIX IND 05, SF IND ST X, SOLVE IND "V"…
         }
 
         if (sp < 0 && Hp42.FnOps.Contains(op)) return new Instr(K.Fn, op);

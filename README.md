@@ -166,7 +166,7 @@ print("sine of", myvar, "is", SIN(myvar))   # → sine of 30 is 0.5
 - **Affichage et modes** : `FIX(n) SCI(n) ENG(n) ALL() RECT() POLAR() CPXRES() REALRES() RDXcomma() RDXperiod() CLLCD() CLD() PSE() DELAY(x) SIZE(n) BEEP() TONE(n)`.
 - **Divers** : `GETKEY() RAN() SEED(x) PIXEL(l, c) AGRAPH(l, c)`, impression `PRA PRX PRSTK PRLCD PRUSR ADV PRON PROFF MAN NORM TRACE`.
 
-Le simulateur exécute presque toutes ces commandes. Pour les autres (SOLVE, INTEG, ASTO, AGRAPH, impression…), il affiche une note « non simulé » et continue. Les statistiques y suivent toujours le modèle linéaire.
+Le simulateur exécute presque toutes ces commandes. Pour les autres (AGRAPH, impression…), il affiche une note « non simulé » et continue. Les statistiques y suivent toujours le modèle linéaire. `SOLVE` exécute la fonction choisie par `PGMSLV` comme la calculatrice (estimations dans la variable et dans X ; X = racine, Y = estimation précédente, Z = f(racine), T = code ; sans racine, la ligne suivante est sautée), par la méthode de Muller puis celle de Brent. `INTEG` intègre de `LLIM` à `ULIM` avec la précision `ACC` (Gauss-Kronrod adaptatif ; X = intégrale, Y = incertitude).
 
 ## Simulation
 
