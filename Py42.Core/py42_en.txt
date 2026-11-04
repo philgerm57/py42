@@ -399,3 +399,12 @@ Erreur d'encodage : {0}	Encoding error: {0}
 Erreur ligne {0} : {1}	Error line {0}: {1}
 Erreur : {0}	Error: {0}
 Cible C47 : pas de .raw ni de simulation HP-42S (DM42 Editor encode le .p47 et lance le simulateur C47)	C47 target: no .raw and no HP-42S simulation (DM42 Editor encodes the .p47 and runs the C47 simulator)
+{0} n'est pas simulé (LASTX)	{0} is not simulated (LASTX)
+Invalid Type : l'adresse indirecte {0} n'est pas un nombre réel	Invalid Type: indirect address {0} is not a real number
+La fonction « {0} » se termine sans RTN	Function "{0}" ends without RTN
+Invalid Type : la fonction « {0} » doit laisser un nombre réel dans X	Invalid Type: function "{0}" must leave a real number in X
+SOLVE sans PGMSLV : choisissez d'abord la fonction (PGMSLV "NOM")	SOLVE without PGMSLV: select the function first (PGMSLV "NAME")
+INTEG sans PGMINT : choisissez d'abord la fonction (PGMINT "NOM")	INTEG without PGMINT: select the function first (PGMINT "NAME")
+(SOLVE {0} : {1}, la ligne suivante est sautée)	(SOLVE {0}: {1}, the next line is skipped)
+(INTEG : variable ACC absente, précision 1ᴇ-6)	(INTEG: no ACC variable, accuracy 1ᴇ-6)
+(INTEG : trop d'évaluations, précision non atteinte)	(INTEG: too many evaluations, accuracy not reached)

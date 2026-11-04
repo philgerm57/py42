@@ -88,6 +88,25 @@ public sealed class SimResult
     public int ErrorPc = -1;
     public int MaxCallDepth;
     public Dictionary<string, Val> Vars { get; } = new();
+    /// <summary>Registres numérotés (RCL 05, STO IND …, Σ+).</summary>
+    public Dictionary<int, Val> Regs { get; } = new();
+}
+
+/// <summary>
+/// Trace d'une exécution pour le pas à pas : l'état AVANT chaque instruction (pile, ALPHA, variables), puis l'état final.
+/// Les saisies étant données à l'avance, l'exécution est déterministe : rejouer la trace équivaut à exécuter pas à pas,
+/// et permet aussi de revenir en arrière.
+/// </summary>
+public sealed class SimTrace
+{
+    public readonly record struct Step(int Pc, int Depth, Val X, Val Y, Val Z, Val T, string Alpha, int Out, int Snap);
+    public sealed record Snapshot(KeyValuePair<string, Val>[] Vars, KeyValuePair<int, Val>[] Regs);
+
+    public List<Step> Steps { get; } = new();
+    public List<Snapshot> Snaps { get; } = new();
+    /// <summary>Nombre de pas enregistrés au plus ; au-delà, l'exécution continue sans trace.</summary>
+    public int Limit { get; init; } = 200_000;
+    public bool Truncated { get; internal set; }
 }
 
 /// <summary>
@@ -182,8 +201,26 @@ public static class Simulator
         return sb.Append(']').ToString();
     }
 
+    // nœuds et poids de Gauss-Kronrod 7-15 (QUADPACK) : GkX[j] décroissants, GkW[7] = poids du centre, GW = Gauss 7 points
+    static readonly double[] GkX =
+    {
+        0.991455371120812639206854697526329, 0.949107912342758524526189684047851, 0.864864423359769072789712788640926,
+        0.741531185599394439863864773280788, 0.586087235467691130294144845693013, 0.405845151377397166906606412076961,
+        0.207784955007898467600689403773245,
+    };
+    static readonly double[] GkW =
+    {
+        0.022935322010529224963732008058970, 0.063092092629978553290700663189204, 0.104790010322250183839876322541518,
+        0.140653259715525918745189590510238, 0.169004726639267902826583426598550, 0.190350578064785409913256402421014,
+        0.204432940075298892414161999234649, 0.209482141084727828012999174891714,
+    };
+    static readonly double[] GW = { 0.129484966168869693270611432679082, 0.279705391489276667901467771423780, 0.381830050505118944950369775488975, 0.417959183673469387755102040816327 };
+
+    /// <summary>Retour d'une fonction appelée par SOLVE / INTEG : adresse de retour fictive qui arrête l'exécution imbriquée.</summary>
+    const int FnReturn = -2;
+
     public static SimResult Run(List<Instr> code, string entry, IEnumerable<double>? stack = null,
-                                IEnumerable<double>? inputs = null, int maxSteps = 100_000_000)
+                                IEnumerable<double>? inputs = null, int maxSteps = 100_000_000, SimTrace? trace = null)
     {
         var r = new SimResult();
         var labels = new Dictionary<string, int>();
@@ -223,7 +260,7 @@ public static class Simulator
         var keysG = new Dictionary<int, (string Lbl, bool Xeq)>();   // KEY n GTO/XEQ "LABEL"
         double sn = 0, sx = 0, sx2 = 0, sy = 0, sy2 = 0, sxy = 0;  // statistiques (Σ+)
         string model = "LINF"; int sreg = 11;
-        var regs = new Dictionary<int, Val>();          // registres numérotés (REGS)
+        var regs = r.Regs;                              // registres numérotés (REGS)
         void SyncStats()
         {
             // modèle LINΣ : Σx, Σx², Σy, Σy², Σxy, n dans les registres ΣREG à ΣREG+5
@@ -236,10 +273,92 @@ public static class Simulator
 
         double ToRad(double a) => rad ? a : a * Math.PI / 180;
         double FromRad(double a) => rad ? a : a * 180 / Math.PI;
-        // registre numéroté d'un listing RPN (RCL 05) : 0 tant qu'il n'a rien reçu, comme sur la calculatrice
-        Val Get(string n) => vars.TryGetValue(n, out var v) ? v
-            : n.Length > 0 && n.All(char.IsDigit) ? Val.Zero
-            : throw new SimError($"Nonexistent : la variable « {n} » n'existe pas encore");
+        // Nom d'opérande : variable, registre numéroté (RCL 05 : 0 tant qu'il n'a rien reçu, comme sur la calculatrice)
+        // ou registre de pile (ST X, ST Y, ST Z, ST T)
+        static bool IsReg(string n) => n.Length > 0 && n.All(char.IsDigit);
+        static bool IsStack(string n) => n.Length == 4 && n.StartsWith("ST ");
+        Val Get(string n)
+        {
+            if (IsStack(n))
+                return n[3] switch
+                {
+                    'X' => x, 'Y' => y, 'Z' => z, 'T' => t,
+                    _ => throw new SimError($"{n} n'est pas simulé (LASTX)")
+                };
+            if (IsReg(n)) return regs.TryGetValue(int.Parse(n, CultureInfo.InvariantCulture), out var rv) ? rv : Val.Zero;
+            return vars.TryGetValue(n, out var v) ? v : throw new SimError($"Nonexistent : la variable « {n} » n'existe pas encore");
+        }
+        bool Has(string n) => IsStack(n) || IsReg(n) || vars.ContainsKey(n);
+        void Set(string n, Val v)
+        {
+            if (IsStack(n))
+                switch (n[3])
+                {
+                    case 'X': x = v; break;
+                    case 'Y': y = v; break;
+                    case 'Z': z = v; break;
+                    case 'T': t = v; break;
+                    default: throw new SimError($"{n} n'est pas simulé (LASTX)");
+                }
+            else if (IsReg(n)) regs[int.Parse(n, CultureInfo.InvariantCulture)] = v;
+            else vars[n] = v;
+        }
+
+        // Adressage indirect : « RCL IND 05 », « GTO IND "N" », « FIX IND ST X »… L'opérande contient un numéro
+        // (registre, label local, drapeau, nombre de décimales) ou un texte (variable, label global).
+        Instr Deref(Instr ins)
+        {
+            string a = ins.Arg;
+            int at = a.StartsWith("IND ") ? 0 : a.IndexOf(" IND ", StringComparison.Ordinal) + 1;
+            string pre = a[..at], opnd = a[(at + 4)..].Trim();
+            var v = Get(opnd);
+            string name;
+            int num = 0;
+            bool isNum = !v.IsStr;
+            if (isNum)
+            {
+                if (!v.IsReal) throw new SimError($"Invalid Type : l'adresse indirecte {opnd} n'est pas un nombre réel");
+                num = (int)Math.Truncate(Math.Abs(v.Re));
+                name = num.ToString("00", CultureInfo.InvariantCulture);
+            }
+            else name = v.S!;
+            if (ins.Kind is K.Gto or K.Xeq)
+                return isNum ? new Instr(ins.Kind, "", num, ins.Line) : new Instr(ins.Kind, name, 0, ins.Line);
+            return new Instr(ins.Kind, pre + name, ins.N, ins.Line);
+        }
+
+        // ---- trace du pas à pas : état avant chaque instruction
+        void Record(int at)
+        {
+            if (trace == null) return;
+            if (trace.Steps.Count >= trace.Limit) { trace.Truncated = true; return; }
+            trace.Steps.Add(new SimTrace.Step(at, calls.Count, x, y, z, t, alpha, r.Display.Count, Snap()));
+        }
+        int Snap()
+        {
+            // nouvel instantané seulement si une variable ou un registre a changé (les valeurs sont remplacées, pas modifiées)
+            var last = trace!.Snaps.Count > 0 ? trace.Snaps[^1] : null;
+            if (last != null && last.Vars.Length == vars.Count && last.Regs.Length == regs.Count)
+            {
+                bool same = true;
+                int k = 0;
+                foreach (var kv in vars)
+                {
+                    if (last.Vars[k].Key != kv.Key || !ReferenceEquals(last.Vars[k].Value, kv.Value)) { same = false; break; }
+                    k++;
+                }
+                k = 0;
+                if (same)
+                    foreach (var kv in regs.OrderBy(kv => kv.Key))
+                    {
+                        if (last.Regs[k].Key != kv.Key || !ReferenceEquals(last.Regs[k].Value, kv.Value)) { same = false; break; }
+                        k++;
+                    }
+                if (same) return trace.Snaps.Count - 1;
+            }
+            trace.Snaps.Add(new SimTrace.Snapshot(vars.ToArray(), regs.OrderBy(kv => kv.Key).ToArray()));
+            return trace.Snaps.Count - 1;
+        }
         bool noLift = false;   // après ENTER, le nombre tapé remplace X (listings RPN ; Py42 n'émet pas ENTER)
         Val Indexed()
         {
@@ -307,12 +426,30 @@ public static class Simulator
             };
         }
 
+        int errPc = pc;                // instruction en cours (la plus imbriquée), pour situer une erreur
+        string? slvPgm = null, intPgm = null;   // PGMSLV, PGMINT
         try
         {
-            while (pc < code.Count)
+            while (pc < code.Count) Step();
+        }
+        catch (SimError e)
+        {
+            r.Error = e.Message;
+            r.ErrorPc = errPc;
+        }
+        Record(-1);   // état final
+        (r.X, r.Y, r.Z, r.T) = (x, y, z, t);
+        return r;
+
+        void Step()
+        {
             {
                 if (++r.Steps > maxSteps) throw new SimError($"Arrêt après {maxSteps} pas : boucle infinie ?");
+                Record(pc);
+                errPc = pc;
                 var ins = code[pc++];
+                if (ins.Kind is not (K.AStr or K.AStrAppend or K.Num) && (ins.Arg.StartsWith("IND ") || ins.Arg.Contains(" IND ")))
+                    ins = Deref(ins);
                 bool liftOff = noLift;   // ENTER ne vaut que pour l'instruction qui le suit
                 noLift = false;
                 switch (ins.Kind)
@@ -326,8 +463,8 @@ public static class Simulator
                     }
                     case K.Const: Lift(Val.R(Math.PI)); break;
                     case K.Rcl: Lift(Get(ins.Arg).Copy()); break;
-                    case K.Sto: vars[ins.Arg] = x.Copy(); break;
-                    case K.StoOp: vars[ins.Arg] = Arith(StoOps[ins.N], Get(ins.Arg), x); break;
+                    case K.Sto: Set(ins.Arg, x.Copy()); break;
+                    case K.StoOp: Set(ins.Arg, Arith(StoOps[ins.N], Get(ins.Arg), x)); break;
                     case K.RclOp: x = Arith(StoOps[ins.N], x, Get(ins.Arg)); break;
                     case K.Op: Drop2(Arith(ins.Arg, y, x)); break;
                     case K.Fn: x = Fn(ins.Arg, x); break;
@@ -344,7 +481,7 @@ public static class Simulator
                             if (step == 0) step = 1;
                             bool isg = ins.Arg.StartsWith("ISG");
                             cnt += isg ? step : -step;
-                            vars[reg] = Val.R(cnt + Math.Sign(cnt == 0 ? 1 : cnt) * frac / 100000);
+                            Set(reg, Val.R(cnt + Math.Sign(cnt == 0 ? 1 : cnt) * frac / 100000));
                             ok = isg ? cnt <= fin : cnt > fin;
                         }
                         else if (ins.Arg.StartsWith("F"))
@@ -416,8 +553,8 @@ public static class Simulator
                     case K.AView: r.Display.Add(alpha.Length > 44 ? alpha[^44..] : alpha); break;
                     case K.Input:
                     {
-                        Val v = queue.Count > 0 ? Val.R(queue.Dequeue()) : vars.TryGetValue(ins.Arg, out var old) ? old : Val.Zero;
-                        vars[ins.Arg] = v;
+                        Val v = queue.Count > 0 ? Val.R(queue.Dequeue()) : Has(ins.Arg) ? Get(ins.Arg) : Val.Zero;
+                        Set(ins.Arg, v);
                         Lift(v);
                         r.Display.Add($"{ins.Arg}?  ← {Fmt(v)}");
                         break;
@@ -540,8 +677,7 @@ public static class Simulator
                             }
                             case "CLV": vars.Remove(w[1].Trim('"')); break;
                             case "ASTO":
-                                if (w[1] == "ST X") x = Val.Text(alpha);
-                                else vars[w[1].Trim('"')] = Val.Text(alpha);
+                                Set(w[1].Trim('"'), Val.Text(alpha));   // variable, registre (ASTO 01) ou ST X
                                 break;
                             case "DIM":
                             {
@@ -562,13 +698,22 @@ public static class Simulator
                                 break;
                             }
                             case "CLΣ": sn = sx = sx2 = sy = sy2 = sxy = 0; SyncStats(); break;
-                            case "RCL":
+                            case "RCL": Lift(Get(w[1].Trim('"')).Copy()); break;
+                            case "STO": Set(w[1].Trim('"'), x.Copy()); break;
+                            case "X<>":
                             {
-                                int rn = int.Parse(w[1]);
-                                Lift(regs.TryGetValue(rn, out var rv) ? rv.Copy() : Val.Zero);
+                                string xn = w[1].Trim('"');
+                                var ov = Get(xn);
+                                Set(xn, x);
+                                x = ov;
                                 break;
                             }
-                            case "STO": regs[int.Parse(w[1])] = x.Copy(); break;
+
+                            // ---- solveur et intégration
+                            case "PGMSLV": slvPgm = w[1].Trim('"'); break;
+                            case "PGMINT": intPgm = w[1].Trim('"'); break;
+                            case "SOLVE": if (!Solve(w[1].Trim('"'))) pc++; break;   // pas de racine : saute la ligne suivante
+                            case "INTEG": Integ(w[1].Trim('"')); break;
                             case "CLRG": regs.Clear(); break;
                             case "LINF": case "LOGF": case "EXPF": case "PWRF": case "BEST":
                                 model = w[0];
@@ -892,13 +1037,186 @@ public static class Simulator
                 if (x.IsReal && double.IsInfinity(x.Re)) throw new SimError("Out of Range : dépassement de capacité");
             }
         }
-        catch (SimError e)
+
+        // ---- SOLVE / INTEG : la fonction de l'utilisateur est exécutée comme un sous-programme (XEQ), jusqu'à son RTN
+        double EvalFn(string pgm, string v, double at)
         {
-            r.Error = e.Message;
-            r.ErrorPc = pc - 1;
+            if (!labels.TryGetValue("\"" + pgm, out int target)) throw new SimError($"Label « {pgm} » introuvable");
+            Set(v, Val.R(at));
+            x = y = z = t = Val.R(at);
+            int savedPc = pc, savedErr = errPc;
+            calls.Push(FnReturn);
+            r.MaxCallDepth = Math.Max(r.MaxCallDepth, calls.Count);
+            pc = target;
+            while (pc != FnReturn)
+            {
+                if (pc < 0 || pc >= code.Count) throw new SimError($"La fonction « {pgm} » se termine sans RTN");
+                Step();
+            }
+            pc = savedPc;
+            errPc = savedErr;
+            if (!x.IsReal) throw new SimError($"Invalid Type : la fonction « {pgm} » doit laisser un nombre réel dans X");
+            return x.Re;
         }
-        (r.X, r.Y, r.Z, r.T) = (x, y, z, t);
-        return r;
+
+        // SOLVE "V" : estimations dans V et dans X, comme sur la calculatrice. Résultat : X = racine, Y = estimation
+        // précédente, Z = f(racine), T = 0 racine, 1 changement de signe, 2 extremum, 3 mauvaises estimations,
+        // 4 constante. Rend faux s'il n'y a pas de racine : le programme saute alors la ligne suivante.
+        bool Solve(string v)
+        {
+            string pgm = slvPgm ?? throw new SimError("SOLVE sans PGMSLV : choisissez d'abord la fonction (PGMSLV \"NOM\")");
+            double a = Has(v) && Get(v).IsReal ? Get(v).Re : 0, b = x.Real;
+            if (a == b) b = a == 0 ? 1e-3 : a * (1 + 1e-3);
+            double fa = EvalFn(pgm, v, a), fb = EvalFn(pgm, v, b);
+            double fmax = Math.Max(Math.Abs(fa), Math.Abs(fb));
+            int resCode;
+            double root, prev, froot;
+            if (double.IsNaN(fa) || double.IsNaN(fb)) { resCode = 3; root = b; prev = a; froot = fb; }
+            else if (fa == 0) { resCode = 0; root = a; prev = b; froot = 0; }
+            else if (fb == 0) { resCode = 0; root = b; prev = a; froot = 0; }
+            else
+            {
+                resCode = -1;
+                // sans encadrement : méthode de Muller (parabole par les 3 derniers points), qui va vers une racine
+                // ou, faute de racine, vers l'extremum ; s'arrête au premier changement de signe
+                bool hasP = false;
+                double p0 = 0, fp0 = 0;
+                double bx = Math.Abs(fa) < Math.Abs(fb) ? a : b, bf = Math.Abs(fa) < Math.Abs(fb) ? fa : fb;   // meilleur point
+                for (int it = 0; it < 200 && Math.Sign(fa) == Math.Sign(fb); it++)
+                {
+                    double c = double.NaN;
+                    if (hasP && p0 != a && a != b)
+                    {
+                        double h1 = a - p0, h2 = b - a, d1 = (fa - fp0) / h1, d2 = (fb - fa) / h2;
+                        double qa = (d2 - d1) / (h2 + h1), qb = d2 + qa * h2;
+                        if (qa != 0)
+                        {
+                            double disc = qb * qb - 4 * qa * fb;
+                            if (disc >= 0)
+                            {
+                                double den = qb + (qb < 0 ? -1 : 1) * Math.Sqrt(disc);
+                                if (den != 0) c = b - 2 * fb / den;
+                            }
+                            else c = b - qb / (2 * qa);   // la parabole ne coupe pas l'axe : son sommet
+                        }
+                    }
+                    if (double.IsNaN(c)) c = fb == fa ? b + 2 * (b - a) : b - fb * (b - a) / (fb - fa);
+                    double lim = 100 * Math.Abs(b - a) + 1e-300;   // au plus 100 fois l'écart précédent
+                    if (Math.Abs(c - b) > lim) c = b + Math.Sign(c - b) * lim;
+                    if (double.IsNaN(c) || double.IsInfinity(c)) { resCode = 3; break; }
+                    if (Math.Abs(c - b) <= 1e-14 * Math.Max(1, Math.Abs(b)))
+                    {
+                        resCode = fa == fb ? 4 : 2;   // plus de progrès sans changement de signe : extremum (ou constante)
+                        break;
+                    }
+                    double fc = EvalFn(pgm, v, c);
+                    fmax = Math.Max(fmax, Math.Abs(fc));
+                    p0 = a; fp0 = fa; hasP = true;
+                    a = b; fa = fb; b = c; fb = fc;
+                    if (Math.Abs(fc) < Math.Abs(bf)) { bx = c; bf = fc; }
+                    if (fc == 0) { resCode = 0; break; }
+                }
+                if (resCode == 0) { root = b; prev = a; froot = 0; }
+                else if (resCode == -1 && Math.Sign(fa) != Math.Sign(fb))
+                {
+                    // encadrement : méthode de Brent
+                    double c = a, fc = fa, d = b - a, e = d;
+                    for (int it = 0; it < 300; it++)
+                    {
+                        if (Math.Sign(fb) == Math.Sign(fc)) { c = a; fc = fa; d = e = b - a; }
+                        if (Math.Abs(fc) < Math.Abs(fb)) { a = b; b = c; c = a; fa = fb; fb = fc; fc = fa; }
+                        double tol = 2 * 1e-16 * Math.Abs(b) + 1e-300, m = 0.5 * (c - b);
+                        if (Math.Abs(m) <= tol || fb == 0) break;
+                        if (Math.Abs(e) >= tol && Math.Abs(fa) > Math.Abs(fb))
+                        {
+                            double s = fb / fa, p, q;
+                            if (a == c) { p = 2 * m * s; q = 1 - s; }
+                            else
+                            {
+                                double q0 = fa / fc, r0 = fb / fc;
+                                p = s * (2 * m * q0 * (q0 - r0) - (b - a) * (r0 - 1));
+                                q = (q0 - 1) * (r0 - 1) * (s - 1);
+                            }
+                            if (p > 0) q = -q; else p = -p;
+                            if (2 * p < Math.Min(3 * m * q - Math.Abs(tol * q), Math.Abs(e * q))) { e = d; d = p / q; }
+                            else { d = m; e = m; }
+                        }
+                        else { d = m; e = m; }
+                        a = b; fa = fb;
+                        b += Math.Abs(d) > tol ? d : (m > 0 ? tol : -tol);
+                        fb = EvalFn(pgm, v, b);
+                        fmax = Math.Max(fmax, Math.Abs(fb));
+                    }
+                    // racine si f s'annule à la précision du calcul, sinon changement de signe (discontinuité)
+                    resCode = fb == 0 || Math.Abs(fb) <= 1e-9 * fmax ? 0 : 1;
+                    root = b; prev = c; froot = fb;
+                }
+                else
+                {
+                    if (resCode == -1) resCode = 2;
+                    root = bx; prev = bx == b ? a : b; froot = bf;
+                }
+            }
+            Set(v, Val.R(root));
+            (x, y, z, t) = (Val.R(root), Val.R(prev), Val.R(froot), Val.R(resCode));
+            if (resCode >= 2)
+                r.Display.Add(Tr.T($"(SOLVE {v} : {(resCode switch { 2 => "Extremum", 3 => "Bad Guess(es)", _ => "Constant?" })}, la ligne suivante est sautée)"));
+            return resCode <= 1;
+        }
+
+        // INTEG "V" : de LLIM à ULIM, précision relative ACC. Résultat : X = intégrale, Y = incertitude.
+        // Gauss-Kronrod 7-15 adaptatif (la calculatrice utilise Romberg) ; les bornes ne sont pas évaluées.
+        void Integ(string v)
+        {
+            string pgm = intPgm ?? throw new SimError("INTEG sans PGMINT : choisissez d'abord la fonction (PGMINT \"NOM\")");
+            double lo = Get("LLIM").Real, hi = Get("ULIM").Real;
+            double acc = Has("ACC") ? Math.Abs(Get("ACC").Real) : 1e-6;
+            if (!Has("ACC")) Note(Tr.T("(INTEG : variable ACC absente, précision 1ᴇ-6)"));
+            var (sx0, sy0, sz0, st0) = (x, y, z, t);
+            double total = 0, err = 0;
+            if (lo != hi)
+            {
+                int evals = 0;
+                (double I, double E, double A) GK(double a, double b)
+                {
+                    double c = (a + b) / 2, h = (b - a) / 2;
+                    double fc = EvalFn(pgm, v, c);
+                    double k = fc * GkW[7], g = fc * GW[3], ab = Math.Abs(fc) * GkW[7];
+                    for (int j = 0; j < 7; j++)
+                    {
+                        double f1 = EvalFn(pgm, v, c - h * GkX[j]), f2 = EvalFn(pgm, v, c + h * GkX[j]);
+                        k += GkW[j] * (f1 + f2);
+                        ab += GkW[j] * (Math.Abs(f1) + Math.Abs(f2));
+                        if (j % 2 == 1) g += GW[j / 2] * (f1 + f2);
+                    }
+                    evals += 15;
+                    return (k * h, Math.Abs((k - g) * h), ab * Math.Abs(h));
+                }
+                var whole = GK(lo, hi);
+                double scale = Math.Max(Math.Abs(whole.I), 1e-3 * whole.A);
+                double tolAll = Math.Max(acc * scale, 1e-15 * whole.A);
+                var work = new Stack<(double a, double b, int depth, double I, double E)>();
+                work.Push((lo, hi, 0, whole.I, whole.E));
+                while (work.Count > 0)
+                {
+                    var (a, b, depth, I, E) = work.Pop();
+                    if (E <= tolAll * Math.Abs((b - a) / (hi - lo)) || depth >= 40 || evals > 60_000)
+                    {
+                        total += I; err += E;
+                        continue;
+                    }
+                    double mid = (a + b) / 2;
+                    var left = GK(a, mid);
+                    var right = GK(mid, b);
+                    work.Push((mid, b, depth + 1, right.I, right.E));
+                    work.Push((a, mid, depth + 1, left.I, left.E));
+                }
+                if (evals > 60_000) Note(Tr.T("(INTEG : trop d'évaluations, précision non atteinte)"));
+            }
+            (x, y, z, t) = (sx0, sy0, sz0, st0);
+            Lift(Val.R(err));
+            Lift(Val.R(total));
+        }
 
         Val Arith(string op, Val a, Val b)   // a op b  (a = Y, b = X)
         {
